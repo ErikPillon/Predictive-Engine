@@ -1,0 +1,73 @@
+﻿id,stage,group,date,time,location,team_home,team_away,kickoff_time
+1,Group Stage,Group A,6/11/2026,3:00:00 PM,Mexico City,Mexico,South Africa,2026-6-11 15:0:0
+2,Group Stage,Group B,6/12/2026,3:00:00 PM,Toronto,Canada,Bosnia-Herzegovina,2026-6-12 15:0:0
+3,Group Stage,Group C,6/13/2026,6:00:00 PM,New York / New Jersy,Brazil,Morocco,2026-6-13 18:0:0
+4,Group Stage,Group D,6/12/2026,9:00:00 PM,Los Angeles,USA,Paraguay,2026-6-12 21:0:0
+5,Group Stage,Group E,6/14/2026,1:00:00 PM,Houston,Germany,Curacao,2026-6-14 13:0:0
+6,Group Stage,Group F,6/14/2026,4:00:00 PM,Dallas,Netherlands,Japan,2026-6-14 16:0:0
+7,Group Stage,Group A,6/11/2026,10:00:00 PM,Guadalajara,South Korea,Czechia,2026-6-11 22:0:0
+8,Group Stage,Group B,6/13/2026,3:00:00 PM,San Francisco Bay Area,Qatar,Switzerland,2026-6-13 15:0:0
+9,Group Stage,Group C,6/13/2026,9:00:00 PM,Boston,Haiti,Scotland,2026-6-13 21:0:0
+10,Group Stage,Group D,6/13/2026,12:00:00 AM,Vancouver,Australia,TÃ¼rkiye,2026-6-13 0:0:0
+11,Group Stage,Group E,6/14/2026,7:00:00 PM,Philadelphia,CÃ´te d'Ivoire,Ecuador,2026-6-14 19:0:0
+12,Group Stage,Group F,6/14/2026,10:00:00 PM,Monterrey,Sweden,Tunisia,2026-6-14 22:0:0
+13,Group Stage,Group A,6/18/2026,12:00:00 PM,Atlanta,Czechia,South Africa,2026-6-18 12:0:0
+14,Group Stage,Group B,6/18/2026,3:00:00 PM,Los Angeles,Switzerland,Bosnia-Herzegovina,2026-6-18 15:0:0
+15,Group Stage,Group C,6/19/2026,6:00:00 PM,Boston,Scotland,Morocco,2026-6-19 18:0:0
+16,Group Stage,Group D,6/19/2026,3:00:00 PM,Seattle,USA,Australia,2026-6-19 15:0:0
+17,Group Stage,Group E,6/20/2026,4:00:00 PM,Toronto,Germany,CÃ´te d'Ivoire,2026-6-20 16:0:0
+18,Group Stage,Group F,6/20/2026,1:00:00 PM,Houston,Netherlands,Sweden,2026-6-20 13:0:0
+19,Group Stage,Group A,6/18/2026,9:00:00 PM,Guadalajara,Mexico,South Korea,2026-6-18 21:0:0
+20,Group Stage,Group B,6/18/2026,6:00:00 PM,Vancouver,Canada,Qatar,2026-6-18 18:0:0
+21,Group Stage,Group C,6/19/2026,9:00:00 PM,Philadelphia,Brazil,Haiti,2026-6-19 21:0:0
+22,Group Stage,Group D,6/19/2026,12:00:00 AM,San Francisco Bay Area,TÃ¼rkiye,Paraguay,2026-6-19 0:0:0
+23,Group Stage,Group E,6/20/2026,8:00:00 PM,Kansas City,Ecuador,Curacao,2026-6-20 20:0:0
+24,Group Stage,Group F,6/20/2026,12:00:00 AM,Monterrey,Tunisia,Japan,2026-6-20 0:0:0
+25,Group Stage,Group A,6/24/2026,9:00:00 PM,Mexico City,Czechia,Mexico,2026-6-24 21:0:0
+26,Group Stage,Group B,6/24/2026,3:00:00 PM,Vancouver,Switzerland,Canada,2026-6-24 15:0:0
+27,Group Stage,Group C,6/24/2026,6:00:00 PM,Miami,Scotland,Brazil,2026-6-24 18:0:0
+28,Group Stage,Group D,6/25/2026,10:00:00 PM,Los Angeles,TÃ¼rkiye,USA,2026-6-25 22:0:0
+29,Group Stage,Group E,6/25/2026,4:00:00 PM,Philadelphia,Curacao,CÃ´te d'Ivoire,2026-6-25 16:0:0
+30,Group Stage,Group F,6/25/2026,7:00:00 PM,Dallas,Japan,Sweden,2026-6-25 19:0:0
+31,Group Stage,Group A,6/24/2026,9:00:00 PM,Monterrey,South Africa,South Korea,2026-6-24 21:0:0
+32,Group Stage,Group B,6/24/2026,3:00:00 PM,Seattle,Bosnia-Herzegovina,Qatar,2026-6-24 15:0:0
+33,Group Stage,Group C,6/24/2026,6:00:00 PM,Atlanta,Morocco,Haiti,2026-6-24 18:0:0
+34,Group Stage,Group D,6/25/2026,10:00:00 PM,San Francisco Bay Area,Paraguay,Australia,2026-6-25 22:0:0
+35,Group Stage,Group E,6/25/2026,4:00:00 PM,New York / New Jersy,Ecuador,Germany,2026-6-25 16:0:0
+36,Group Stage,Group F,6/25/2026,7:00:00 PM,Kansas City,Tunisia,Netherlands,2026-6-25 19:0:0
+37,Group Stage,Group G,6/15/2026,3:00:00 PM,Seattle,Belgium,Egypt,2026-6-15 15:0:0
+38,Group Stage,Group H,6/15/2026,12:00:00 PM,Atlanta,Spain,Cabo Verde,2026-6-15 12:0:0
+39,Group Stage,Group I,6/16/2026,3:00:00 PM,New York / New Jersy,France,Senegal,2026-6-16 15:0:0
+40,Group Stage,Group J,6/16/2026,9:00:00 PM,Kansas City,Argentina,Algeria,2026-6-16 21:0:0
+41,Group Stage,Group K,6/17/2026,1:00:00 PM,Houston,Portugal,Congo DR,2026-6-17 13:0:0
+42,Group Stage,Group L,6/17/2026,4:00:00 PM,Dallas,England,Croatia,2026-6-17 16:0:0
+43,Group Stage,Group G,6/15/2026,9:00:00 PM,Los Angeles,IR Iran,New Zealand,2026-6-15 21:0:0
+44,Group Stage,Group H,6/15/2026,6:00:00 PM,Miami,Saudi Arabia,Uruguay,2026-6-15 18:0:0
+45,Group Stage,Group I,6/16/2026,6:00:00 PM,Boston,Iraq,Norway,2026-6-16 18:0:0
+46,Group Stage,Group J,6/16/2026,12:00:00 AM,San Francisco Bay Area,Austria,Jordan,2026-6-16 0:0:0
+47,Group Stage,Group K,6/17/2026,10:00:00 PM,Mexico City,Uzbekistan,Colombia,2026-6-17 22:0:0
+48,Group Stage,Group L,6/17/2026,7:00:00 PM,Toronto,Ghana,Panama,2026-6-17 19:0:0
+49,Group Stage,Group G,6/21/2026,3:00:00 PM,Los Angeles,Belgium,IR Iran,2026-6-21 15:0:0
+50,Group Stage,Group H,6/21/2026,12:00:00 PM,Atlanta,Spain,Saudi Arabia,2026-6-21 12:0:0
+51,Group Stage,Group I,6/22/2026,5:00:00 PM,Philadelphia,France,Iraq,2026-6-22 17:0:0
+52,Group Stage,Group J,6/22/2026,1:00:00 PM,Dallas,Argentina,Austria,2026-6-22 13:0:0
+53,Group Stage,Group K,6/23/2026,1:00:00 PM,Houston,Portugal,Uzbekistan,2026-6-23 13:0:0
+54,Group Stage,Group L,6/23/2026,4:00:00 PM,Boston,England,Ghana,2026-6-23 16:0:0
+55,Group Stage,Group G,6/21/2026,9:00:00 PM,Vancouver,New Zealand,Egypt,2026-6-21 21:0:0
+56,Group Stage,Group H,6/21/2026,6:00:00 PM,Miami,Uruguay,Cabo Verde,2026-6-21 18:0:0
+57,Group Stage,Group I,6/22/2026,8:00:00 PM,New York / New Jersy,Norway,Senegal,2026-6-22 20:0:0
+58,Group Stage,Group J,6/22/2026,11:00:00 PM,San Francisco Bay Area,Jordan,Algeria,2026-6-22 23:0:0
+59,Group Stage,Group K,6/23/2026,10:00:00 PM,Guadalajara,Colombia,Congo DR,2026-6-23 22:0:0
+60,Group Stage,Group L,6/23/2026,7:00:00 PM,Toronto,Panama,Croatia,2026-6-23 19:0:0
+61,Group Stage,Group G,6/26/2026,11:00:00 PM,Seattle,Egypt,IR Iran,2026-6-26 23:0:0
+62,Group Stage,Group H,6/26/2026,8:00:00 PM,Houston,Cabo Verde,Saudi Arabia,2026-6-26 20:0:0
+63,Group Stage,Group I,6/26/2026,3:00:00 PM,Boston,Norway,France,2026-6-26 15:0:0
+64,Group Stage,Group J,6/27/2026,10:00:00 PM,Kansas City,Algeria,Austria,2026-6-27 22:0:0
+65,Group Stage,Group K,6/27/2026,7:30:00 PM,Miami,Colombia,Portugal,2026-6-27 19:30:0
+66,Group Stage,Group L,6/27/2026,5:00:00 PM,New York / New Jersy,Panama,England,2026-6-27 17:0:0
+67,Group Stage,Group G,6/26/2026,11:00:00 PM,Vancouver,New Zealand,Belgium,2026-6-26 23:0:0
+68,Group Stage,Group H,6/26/2026,8:00:00 PM,Guadalajara,Uruguay,Spain,2026-6-26 20:0:0
+69,Group Stage,Group I,6/26/2026,3:00:00 PM,Toronto,Senegal,Iraq,2026-6-26 15:0:0
+70,Group Stage,Group J,6/27/2026,10:00:00 PM,Dallas,Jordan,Argentina,2026-6-27 22:0:0
+71,Group Stage,Group K,6/27/2026,7:30:00 PM,Atlanta,Congo DR,Uzbekistan,2026-6-27 19:30:0
+72,Group Stage,Group L,6/27/2026,5:00:00 PM,Philadelphia,Croatia,Ghana,2026-6-27 17:0:0

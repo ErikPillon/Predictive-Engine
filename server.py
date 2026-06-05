@@ -48,8 +48,12 @@ def load_supabase_config():
         or ""
     )
     supabase_anon_key = (
-        os.environ.get("SUPABASE_ANON_KEY")
+        os.environ.get("SUPABASE_PUBLISHABLE_KEY")
+        or os.environ.get("VITE_SUPABASE_PUBLISHABLE_KEY")
+        or os.environ.get("SUPABASE_ANON_KEY")
         or os.environ.get("VITE_SUPABASE_ANON_KEY")
+        or file_values.get("SUPABASE_PUBLISHABLE_KEY")
+        or file_values.get("VITE_SUPABASE_PUBLISHABLE_KEY")
         or file_values.get("SUPABASE_ANON_KEY")
         or file_values.get("VITE_SUPABASE_ANON_KEY")
         or ""
@@ -63,8 +67,21 @@ def load_supabase_config():
     return {
         "supabaseUrl": supabase_url,
         "supabaseAnonKey": supabase_anon_key,
+        "supabaseKeyType": classify_supabase_key(supabase_anon_key),
         "supabaseDataApi": supabase_data_api,
     }
+
+
+def classify_supabase_key(value):
+    if value.startswith("sb_publishable_"):
+        return "publishable"
+    if value.startswith("eyJ"):
+        return "legacy anon JWT"
+    if value.startswith("sb_secret_"):
+        return "secret key - do not expose in browser"
+    if value:
+        return "unknown"
+    return "missing"
 
 
 class PredictiveEngineHandler(SimpleHTTPRequestHandler):
@@ -113,9 +130,10 @@ def run_server(port):
     print(f" URL:  http://localhost:{port}")
     if config["supabaseUrl"] and config["supabaseAnonKey"]:
         print(" AUTH: Supabase configuration detected")
+        print(f" KEY:  {config['supabaseKeyType']}")
     else:
         print(" AUTH: Supabase configuration missing")
-        print("       Add SUPABASE_URL and SUPABASE_ANON_KEY to .env")
+        print("       Add SUPABASE_URL and SUPABASE_PUBLISHABLE_KEY to .env")
     if config["supabaseDataApi"]:
         print(" DATA: SUPABASE_DATA_API detected")
     else:

@@ -20,6 +20,8 @@ const state = {
   alerts: [],
   dataApiStatus: "idle",
   dataApiPayload: null,
+  authMode: "signin",
+  authNotice: "",
   profileOpen: false,
   mobileOpen: false,
   statsOpen: false,
@@ -124,6 +126,38 @@ async function signInWithSupabase(email, password) {
   notify("Welcome back. Supabase session established.");
 }
 
+async function signUpWithSupabase(email, password) {
+  if (!config.supabaseUrl || !config.supabaseAnonKey) {
+    throw new Error("Supabase Auth is not configured. Add SUPABASE_URL and SUPABASE_ANON_KEY to .env.");
+  }
+
+  const response = await fetch(`${config.supabaseUrl.replace(/\/$/, "")}/auth/v1/signup`, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      apikey: config.supabaseAnonKey,
+      Authorization: `Bearer ${config.supabaseAnonKey}`,
+    },
+    body: JSON.stringify({ email, password }),
+  });
+  const payload = await response.json().catch(() => ({}));
+
+  if (!response.ok) {
+    throw new Error(payload.error_description || payload.msg || payload.error || "Supabase sign-up failed.");
+  }
+
+  if (payload.access_token) {
+    state.session = payload;
+    writeJson(storageKeys.session, payload);
+    await fetchDataApi();
+    notify("Account created. Supabase session established.");
+    return;
+  }
+
+  state.authMode = "signin";
+  state.authNotice = "Account created. Check your email to confirm the account, then sign in.";
+}
+
 async function fetchDataApi() {
   if (!config.supabaseDataApi) {
     state.dataApiStatus = "missing";
@@ -173,6 +207,7 @@ function render() {
 }
 
 function renderLogin(error = "") {
+  const isSignup = state.authMode === "signup";
   app.innerHTML = `
     <main class="auth-page">
       <section class="auth-card">
@@ -180,10 +215,11 @@ function renderLogin(error = "") {
           <div class="brand-mark">PE</div>
           <div>
             <h1>Predictive Engine</h1>
-            <p class="muted" style="margin:4px 0 0">Sign in with your Supabase account</p>
+            <p class="muted" style="margin:4px 0 0">${isSignup ? "Create a Supabase account to start predicting" : "Sign in with your Supabase account"}</p>
           </div>
         </div>
         ${error ? `<div class="alert-error">${escapeHtml(error)}</div>` : ""}
+        ${state.authNotice ? `<div class="alert-error" style="background:#d1fae5;color:#065f46;border-color:#a7f3d0">${escapeHtml(state.authNotice)}</div>` : ""}
         ${!config.supabaseUrl || !config.supabaseAnonKey ? `
           <div class="alert-error">
             Missing Supabase Auth config. Add SUPABASE_URL and SUPABASE_ANON_KEY to .env, then restart py server.py.
@@ -196,10 +232,13 @@ function renderLogin(error = "") {
           </label>
           <label>
             <span class="mono-label">Password</span>
-            <input class="field" id="password" type="password" autocomplete="current-password" placeholder="Supabase password" required />
+            <input class="field" id="password" type="password" autocomplete="${isSignup ? "new-password" : "current-password"}" placeholder="${isSignup ? "Choose a password" : "Supabase password"}" minlength="6" required />
           </label>
-          <button class="primary-button" type="submit">Sign In With Supabase</button>
+          <button class="primary-button" type="submit">${isSignup ? "Create Account" : "Sign In With Supabase"}</button>
         </form>
+        <button class="ghost-button" id="auth-mode-toggle" style="margin-top:16px;width:100%;min-height:36px">
+          ${isSignup ? "Already have an account? Sign in" : "New here? Create an account"}
+        </button>
         <div class="auth-footer">
           DATA API: ${config.supabaseDataApi ? "CONFIGURED" : "MISSING"} | AUTH API: ${config.supabaseUrl ? "CONFIGURED" : "MISSING"}
         </div>
@@ -207,16 +246,25 @@ function renderLogin(error = "") {
     </main>
   `;
 
+  document.getElementById("auth-mode-toggle").addEventListener("click", () => {
+    state.authMode = isSignup ? "signin" : "signup";
+    state.authNotice = "";
+    renderLogin();
+  });
+
   document.getElementById("login-form").addEventListener("submit", async (event) => {
     event.preventDefault();
     const button = event.target.querySelector("button");
     button.disabled = true;
-    button.textContent = "Verifying Supabase session...";
+    button.textContent = isSignup ? "Creating account..." : "Verifying Supabase session...";
     try {
-      await signInWithSupabase(
-        document.getElementById("email").value.trim(),
-        document.getElementById("password").value,
-      );
+      const email = document.getElementById("email").value.trim();
+      const password = document.getElementById("password").value;
+      if (isSignup) {
+        await signUpWithSupabase(email, password);
+      } else {
+        await signInWithSupabase(email, password);
+      }
       render();
     } catch (authError) {
       renderLogin(authError.message);
@@ -265,18 +313,36 @@ function renderSidebar() {
   return `
     <aside class="sidebar">
       <div class="sidebar-brand">
-        <div class="brand-row" style="gap:10px"><div class="brand-mark">PE</div><span class="brand-title">Predictive Engine</span></div>
-        <button class="profile-row" data-action="profile">
+        <div class="brand-row" style="gap:12px">
+          <div class="brand-mark">PE</div>
+          <span>
+            <span class="brand-title">Predictive Engine</span>
+            <span class="brand-kicker">Corporate Intelligence</span>
+          </span>
+        </div>
+        <button class="profile-row nav-glass" data-action="profile">
           <span class="avatar">${escapeHtml(currentUserEmail().slice(0, 2).toUpperCase() || "PE")}</span>
-          <span><span class="profile-name">Predictive Analyst</span><span class="profile-email">${escapeHtml(currentUserEmail())}</span></span>
+          <span>
+            <span class="profile-name">Predictive Analyst</span>
+            <span class="profile-email">${escapeHtml(currentUserEmail())}</span>
+          </span>
         </button>
       </div>
+      <div class="nav-section-label">Workspace</div>
       <nav class="side-nav">
         ${navButton("calendar", "Match Calendar")}
         ${navButton("dashboard", "My Dashboard")}
         ${navButton("leaderboard", "Leaderboard")}
       </nav>
+      <div class="nav-health-card">
+        <span class="health-dot"></span>
+        <div>
+          <strong>Supabase Link</strong>
+          <span>${config.supabaseKeyType || "configured"} key active</span>
+        </div>
+      </div>
       <div class="side-actions">
+        <div class="nav-section-label">Operations</div>
         ${navButton("settings", "Settings")}
         ${navButton("support", "Support")}
         <button class="danger-button" data-action="signout">${icon("logout")} Sign Out</button>

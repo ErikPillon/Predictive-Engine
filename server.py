@@ -54,10 +54,16 @@ def load_supabase_config():
         or file_values.get("VITE_SUPABASE_ANON_KEY")
         or ""
     )
+    supabase_data_api = (
+        os.environ.get("SUPABASE_DATA_API")
+        or file_values.get("SUPABASE_DATA_API")
+        or ""
+    )
 
     return {
         "supabaseUrl": supabase_url,
         "supabaseAnonKey": supabase_anon_key,
+        "supabaseDataApi": supabase_data_api,
     }
 
 
@@ -109,7 +115,11 @@ def run_server(port):
         print(" AUTH: Supabase configuration detected")
     else:
         print(" AUTH: Supabase configuration missing")
-        print("       Add SUPABASE_URL and SUPABASE_ANON_KEY to .env.local")
+        print("       Add SUPABASE_URL and SUPABASE_ANON_KEY to .env")
+    if config["supabaseDataApi"]:
+        print(" DATA: SUPABASE_DATA_API detected")
+    else:
+        print(" DATA: SUPABASE_DATA_API missing")
     print("--------------------------------------------------")
     print(" Press Ctrl+C to terminate.\n")
 

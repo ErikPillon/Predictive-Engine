@@ -218,18 +218,18 @@ async function fetchDataApi() {
 
     if (Array.isArray(payload)) {
       state.matches = payload.map((m) => {
-        const d = new Date(m.kickoff_time || m.date);
+        const d = new Date(m.kickoff_time || m.kickoff_date || m.date);
         // Extract prediction if available (Supabase join returns an array)
         const prediction = Array.isArray(m.predictions) ? m.predictions[0] : null;
         
         return {
           id: String(m.id || Math.random()),
-          date: m.date || "Upcoming",
+          date: m.kickoff_date || m.date || "Upcoming",
           dateStr: isNaN(d.getTime()) ? (m.date || "TBD") : d.toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" }).toUpperCase(),
           teamA: m.team_home || m.teamA || "TBD",
           teamB: m.team_away || m.teamB || "TBD",
           kickoff: m.time || m.kickoff || "TBD",
-          kickoff_time: m.kickoff_time || m.date,
+          kickoff_time: m.kickoff_time || m.kickoff_date || m.date,
           status: m.status || "open",
           badge: m.badge || (prediction ? "PREDICTED" : "SYNCED"),
           userGuessA: prediction ? prediction.user_guess_a : (m.user_guess_a ?? m.userGuessA),
@@ -477,8 +477,11 @@ function renderCalendar(stats) {
   const sortedMatches = [...state.matches].sort((a, b) => {
     const timeA = new Date(a.kickoff_time || a.date).getTime();
     const timeB = new Date(b.kickoff_time || b.date).getTime();
-    if (!isNaN(timeA) && !isNaN(timeB) && timeA !== timeB) return timeA - timeB;
     
+    // Primary sort: Date/Time Descending
+    if (!isNaN(timeA) && !isNaN(timeB) && timeA !== timeB) return timeB - timeA;
+    
+    // Secondary sort: Locked status (though descending time usually handles this)
     const lockA = isLocked(a);
     const lockB = isLocked(b);
     if (lockA !== lockB) return lockA ? -1 : 1;
@@ -568,54 +571,127 @@ function teamBlock(team) {
 }
 
 function renderDashboard() {
-  const confidence = (84.2 + (state.histWeight - 65) * 0.15 + (state.formWeight - 80) * 0.08 + (state.modelType === "bayesian" ? -3.4 : state.modelType === "linear" ? -7.8 : 0)).toFixed(1);
-  const days = [
-    [28, true], [29, true], [30, true], [1], [2, false, "MATCH #A21"], [3], [4],
-    [5], [6], [7, false, "MAJOR EVENT", "major"], [8], [9], [10], [11],
-  ];
+  const pastMatches = state.matches.filter(m => {
+    const isPast = m.kickoff_time && new Date(m.kickoff_time) < new Date();
+    const hasGuess = (m.userGuessA !== undefined && m.userGuessA !== null && m.userGuessA !== "");
+    return isPast && hasGuess;
+  }).sort((a, b) => new Date(b.kickoff_time) - new Date(a.kickoff_time));
+
   return `
     ${renderDataStatus()}
-    <div class="dashboard-grid">
-      <div class="card">
-        <div class="row" style="justify-content:space-between; gap:16px; border-bottom:1px solid #f2f4f6; padding-bottom:16px">
-          <div><span class="mono-label">Prediction Confidence</span><span class="metric-value">${confidence}%</span></div>
-          <div class="switcher">${["neural", "bayesian", "linear"].map((type) => `<button class="${state.modelType === type ? "active" : ""}" data-model="${type}">${type}</button>`).join("")}</div>
+    <div class="dashboard-grid" style="grid-template-columns: 1fr">
+      <div class="card elegant-card">
+        <div class="row" style="justify-content:space-between; margin-bottom: 24px">
+          <div>
+            <h3 class="elegant-title">Analytical Performance</h3>
+            <p class="muted">Historical accuracy and prediction archives.</p>
+          </div>
+          <span class="badge">Archives Verified</span>
         </div>
-        <p class="muted">Adjust historical weights and team form metrics below for real-time recalibration.</p>
-        <div class="slider-grid">
-          ${rangeControl("Historical Data Weight", "hist", state.histWeight, 40, 90)}
-          ${rangeControl("Form Recency Weight", "form", state.formWeight, 50, 100)}
+        
+        <div class="expandable-section">
+          <button class="expand-toggle" data-action="toggle-past">
+            <span>Past Predictions & Results</span>
+            <span class="icon">${icon("menu")}</span>
+          </button>
+          <div class="expand-content ${state.pastPredictionsOpen ? "open" : ""}">
+            ${pastMatches.length === 0 ? `
+              <div class="empty-state">No historical predictions recorded in the current session.</div>
+            ` : `
+              <div class="past-list">
+                ${pastMatches.map(m => `
+                  <div class="past-item">
+                    <div class="past-info">
+                      <strong>${escapeHtml(m.teamA)} vs ${escapeHtml(m.teamB)}</strong>
+                      <span class="muted">${escapeHtml(m.date)}</span>
+                    </div>
+                    <div class="past-scores">
+                      <div class="score-pair">
+                        <span class="mono-label">Guess</span>
+                        <strong>${m.userGuessA} : ${m.userGuessB}</strong>
+                      </div>
+                      <div class="score-pair">
+                        <span class="mono-label">Result</span>
+                        <strong class="${m.expectedA !== undefined ? "final" : "pending"}">
+                          ${m.expectedA !== undefined ? `${m.expectedA} : ${m.expectedB}` : "TBD"}
+                        </strong>
+                      </div>
+                    </div>
+                  </div>
+                `).join("")}
+              </div>
+            `}
+          </div>
         </div>
-      </div>
-      <div class="dark-card">
-        <span class="mono-label" style="color:#9ca3af">Active Sessions</span>
-        <span class="metric-value" style="color:white">12</span>
-        <p style="color:#9ca3af; font-family:var(--font-mono); font-size:10px">CALIBRATION SERVER ACTIVE | LATENCY 4MS</p>
       </div>
     </div>
+
     <div class="tabs" style="margin-top:32px">
       <button class="tab-button" data-tab="calendar">Match Calendar</button>
       <button class="tab-button active">My Dashboard</button>
       <button class="tab-button" data-tab="leaderboard">Leaderboard</button>
     </div>
-    <div class="calendar-layout" style="margin-top:24px">
-      <div class="card">
-        <h3>September 2023</h3>
-        <div class="month-grid">
-          ${["MON", "TUE", "WED", "THU", "FRI", "SAT", "SUN"].map((day) => `<div class="day-head">${day}</div>`).join("")}
-          ${days.map(([num, prev, event, type]) => `<button class="day-cell ${prev ? "prev" : ""} ${state.selectedDay === num && !prev ? "selected" : ""}" ${prev ? "disabled" : ""} data-day="${num}"><span>${num}</span>${event ? `<span class="event ${type === "major" ? "major" : ""}">${event}</span>` : ""}</button>`).join("")}
+    
+    <div class="calendar-layout-elegant" style="margin-top:24px">
+      <div class="card elegant-card">
+        <div class="row" style="justify-content:space-between; margin-bottom: 20px">
+          <h3 class="elegant-title">Operational Calendar</h3>
+          <div class="month-nav">
+             <button class="icon-button">${icon("<")}</button>
+             <strong style="font-family: var(--font-mono)">JUNE 2026</strong>
+             <button class="icon-button">${icon(">")}</button>
+          </div>
         </div>
-        ${state.selectedDay ? `<p class="muted"><strong>Sept ${state.selectedDay}, 2023</strong> selected. Predictive confidence status is optimal.</p>` : ""}
+        <div class="elegant-month-grid">
+          ${["MON", "TUE", "WED", "THU", "FRI", "SAT", "SUN"].map((day) => `<div class="day-head-elegant">${day}</div>`).join("")}
+          ${renderElegantDays()}
+        </div>
       </div>
-      <div class="card">
-        <h3>Upcoming Predictions</h3>
-        <p><strong>Team Alpha vs Bravo</strong> <span class="badge">High</span></p>
-        <p class="muted">Crestwood United <span class="badge">Mid</span></p>
-        <p class="muted">Global Giants <span class="badge">Low</span></p>
-        <button class="secondary-button" data-tab="calendar">Navigate to Fixtures</button>
+      
+      <div class="side-panel-elegant">
+        <h3 class="elegant-title" style="color: white">System Feed</h3>
+        <div class="feed-item">
+          <span class="feed-dot"></span>
+          <div>
+            <strong>Next Major Sync</strong>
+            <p>Automatic recalibration in 4h 12m</p>
+          </div>
+        </div>
+        <div class="feed-item">
+          <span class="feed-dot active"></span>
+          <div>
+            <strong>API Connectivity</strong>
+            <p>Supabase nodes operating at 100%</p>
+          </div>
+        </div>
       </div>
     </div>
   `;
+}
+
+function renderElegantDays() {
+  // Simplified elegant day renderer for June 2026
+  // Starts on a Monday (June 1st, 2026 is a Monday)
+  const days = [];
+  for (let i = 1; i <= 30; i++) {
+    const dateStr = `2026-06-${String(i).padStart(2, '0')}`;
+    const matchesOnDay = state.matches.filter(m => {
+       const mDate = new Date(m.kickoff_time || m.kickoff_date || m.date);
+       return mDate.getDate() === i && mDate.getMonth() === 5 && mDate.getFullYear() === 2026;
+    });
+    
+    days.push(`
+      <div class="day-cell-elegant ${matchesOnDay.length > 0 ? "has-matches" : ""}">
+        <span class="day-num">${i}</span>
+        ${matchesOnDay.length > 0 ? `
+          <div class="match-indicator">
+            ${matchesOnDay.length} Match${matchesOnDay.length > 1 ? "es" : ""}
+          </div>
+        ` : ""}
+      </div>
+    `);
+  }
+  return days.join("");
 }
 
 function rangeControl(label, name, value, min, max) {
@@ -751,6 +827,7 @@ function bindShellEvents() {
       if (action === "close-stats") { state.statsOpen = false; render(); }
       if (action === "fetch-data") await fetchDataApi();
       if (action === "toggle-notifications") { state.notificationsEnabled = !state.notificationsEnabled; render(); }
+      if (action === "toggle-past") { state.pastPredictionsOpen = !state.pastPredictionsOpen; render(); }
     });
   });
 

@@ -699,6 +699,9 @@ button:disabled {
   border-radius: 12px;
   background: #eef2f7;
   font-size: 28px;
+  overflow: hidden;
+  border: 1px solid var(--line);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05);
 }
 
 .team-name {

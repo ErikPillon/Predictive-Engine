@@ -78,15 +78,42 @@ function currentUserEmail() {
 }
 
 function getStats() {
-  const predictedCount = state.matches.filter((match) => match.userGuessA !== undefined && match.userGuessB !== undefined).length;
-  const bonus = state.matches.filter((match) => match.id !== "m1" && match.userGuessA !== undefined).length;
+  const matches = state.matches || [];
+  const upcomingMatches = matches.length;
+  const predictedCount = matches.filter((match) => 
+    (match.userGuessA !== undefined && match.userGuessA !== null && match.userGuessA !== "") && 
+    (match.userGuessB !== undefined && match.userGuessB !== null && match.userGuessB !== "")
+  ).length;
+  
+  const pendingGuesses = Math.max(0, upcomingMatches - predictedCount);
+  
+  // Calculate accuracy based on matches that have results (expected scores)
+  const completedMatches = matches.filter(m => 
+    (m.expectedA !== undefined && m.expectedA !== null && m.expectedA !== "") && 
+    (m.expectedB !== undefined && m.expectedB !== null && m.expectedB !== "")
+  );
+  const correctScores = completedMatches.filter(m => 
+    Number(m.userGuessA) === Number(m.expectedA) && 
+    Number(m.userGuessB) === Number(m.expectedB)
+  ).length;
+  
+  let accuracyTier = "A+";
+  if (completedMatches.length > 0) {
+    const ratio = correctScores / completedMatches.length;
+    if (ratio > 0.8) accuracyTier = "S";
+    else if (ratio > 0.5) accuracyTier = "A+";
+    else if (ratio > 0.3) accuracyTier = "A";
+    else accuracyTier = "B";
+  }
+
+  const bonus = matches.filter((match) => match.id !== "m1" && (match.userGuessA !== undefined && match.userGuessA !== null)).length;
   return {
-    upcomingMatches: 12,
-    pendingGuesses: Math.max(0, 10 - predictedCount),
-    accuracyTier: "A+",
+    upcomingMatches,
+    pendingGuesses,
+    accuracyTier,
     userPosition: Math.max(1, 14 - bonus),
     totalUsers: 2450,
-    correctScores: 42 + bonus,
+    correctScores: correctScores,
     correctOutcomes: 128 + bonus * 2,
   };
 }
@@ -168,7 +195,16 @@ async function fetchDataApi() {
   render();
 
   try {
-    const response = await fetch(config.supabaseDataApi, {
+    let apiUrl = config.supabaseDataApi;
+    // Ensure we are hitting the matches table with a join on predictions
+    if (apiUrl.endsWith("/rest/v1/") || apiUrl.endsWith("/rest/v1")) {
+      apiUrl = `${apiUrl.replace(/\/$/, "")}/matches?select=*,predictions(*)`;
+    } else if (!apiUrl.includes("select=")) {
+      const separator = apiUrl.includes("?") ? "&" : "?";
+      apiUrl = `${apiUrl}${separator}select=*,predictions(*)`;
+    }
+
+    const response = await fetch(apiUrl, {
       headers: {
         Accept: "application/json",
         apikey: config.supabaseAnonKey,
@@ -183,6 +219,9 @@ async function fetchDataApi() {
     if (Array.isArray(payload)) {
       state.matches = payload.map((m) => {
         const d = new Date(m.kickoff_time || m.date);
+        // Extract prediction if available (Supabase join returns an array)
+        const prediction = Array.isArray(m.predictions) ? m.predictions[0] : null;
+        
         return {
           id: String(m.id || Math.random()),
           date: m.date || "Upcoming",
@@ -190,10 +229,11 @@ async function fetchDataApi() {
           teamA: m.team_home || m.teamA || "TBD",
           teamB: m.team_away || m.teamB || "TBD",
           kickoff: m.time || m.kickoff || "TBD",
+          kickoff_time: m.kickoff_time || m.date,
           status: m.status || "open",
-          badge: m.badge || "SYNCED",
-          userGuessA: m.user_guess_a ?? m.userGuessA,
-          userGuessB: m.user_guess_b ?? m.userGuessB,
+          badge: m.badge || (prediction ? "PREDICTED" : "SYNCED"),
+          userGuessA: prediction ? prediction.user_guess_a : (m.user_guess_a ?? m.userGuessA),
+          userGuessB: prediction ? prediction.user_guess_b : (m.user_guess_b ?? m.userGuessB),
           expectedA: m.expected_a ?? m.expectedA,
           expectedB: m.expected_b ?? m.expectedB,
         };
@@ -431,21 +471,40 @@ function renderDataStatus() {
 }
 
 function renderCalendar(stats) {
-  const dates = [...new Set(state.matches.map((match) => match.date))];
+  const now = new Date();
+  const isLocked = (m) => m.status === "locked" || (m.kickoff_time && new Date(m.kickoff_time) < now);
+
+  const sortedMatches = [...state.matches].sort((a, b) => {
+    const timeA = new Date(a.kickoff_time || a.date).getTime();
+    const timeB = new Date(b.kickoff_time || b.date).getTime();
+    if (!isNaN(timeA) && !isNaN(timeB) && timeA !== timeB) return timeA - timeB;
+    
+    const lockA = isLocked(a);
+    const lockB = isLocked(b);
+    if (lockA !== lockB) return lockA ? -1 : 1;
+    return 0;
+  });
+
+  const dates = [...new Set(sortedMatches.map((match) => match.date))];
   return `
     ${renderDataStatus()}
     <div class="grid-3">
-      ${metricCard("Upcoming Matches", stats.upcomingMatches)}
-      ${metricCard("Pending Guesses", String(stats.pendingGuesses).padStart(2, "0"))}
-      ${metricCard("Accuracy Tier", `${stats.accuracyTier} <span style="font-size:12px;color:#059669">(TOP 1%)</span>`)}
+      ${metricCard("Upcoming Matches", stats.upcomingMatches, "metric-value-matches")}
+      ${metricCard("Pending Guesses", String(stats.pendingGuesses).padStart(2, "0"), "metric-value-guesses")}
+      ${metricCard("Accuracy Tier", `${stats.accuracyTier} <span style="font-size:12px;color:#059669">(TOP 1%)</span>`, "metric-value-tier")}
     </div>
     <div class="section-stack">
-      ${dates.map((date) => {
-        const matches = state.matches.filter((match) => match.date === date);
+      ${sortedMatches.length === 0 ? `
+        <div class="card" style="text-align: center; padding: 48px; border: 1px dashed var(--line-dark)">
+          <p class="muted" style="margin-bottom: 16px">No matches detected in the current predictive cycle.</p>
+          <button class="primary-button" data-action="fetch-data">Sync with Supabase</button>
+        </div>
+      ` : dates.map((date) => {
+        const matchesForDate = sortedMatches.filter((match) => match.date === date);
         return `
           <section>
-            <div class="date-header"><h2>${escapeHtml(date)}</h2><div class="rule"></div><span class="date-code">${escapeHtml(matches[0].dateStr)}</span></div>
-            <div class="match-list">${matches.map(renderMatchCard).join("")}</div>
+            <div class="date-header"><h2>${escapeHtml(date)}</h2><div class="rule"></div><span class="date-code">${escapeHtml(matchesForDate[0].dateStr)}</span></div>
+            <div class="match-list">${matchesForDate.map(renderMatchCard).join("")}</div>
           </section>
         `;
       }).join("")}
@@ -453,38 +512,59 @@ function renderCalendar(stats) {
   `;
 }
 
-function metricCard(label, value) {
-  return `<div class="card"><span class="mono-label">${label}</span><span class="metric-value">${value}</span></div>`;
+function metricCard(label, value, id) {
+  return `<div class="card"><span class="mono-label">${label}</span><span class="metric-value" ${id ? `id="${id}"` : ""}>${value}</span></div>`;
 }
 
 function renderMatchCard(match) {
-  const locked = match.status === "locked";
+  const now = new Date();
+  const isExpired = match.kickoff_time && new Date(match.kickoff_time) < now;
+  const locked = match.status === "locked" || isExpired;
+  
+  const hasGuess = (match.userGuessA !== undefined && match.userGuessA !== null && match.userGuessA !== "") || 
+                   (match.userGuessB !== undefined && match.userGuessB !== null && match.userGuessB !== "");
+  
   return `
     <article class="match-card ${locked ? "locked" : ""}">
-      ${locked ? `<div class="lock-ribbon">Lock Closed</div>` : ""}
+      ${locked ? `<div class="lock-ribbon">${hasGuess ? "PREDICTION RECORDED" : "LOCK CLOSED"}</div>` : ""}
       <div class="teams">
         ${teamBlock(match.teamA)}
         <span class="versus">vs</span>
         ${teamBlock(match.teamB)}
       </div>
       <div class="match-detail">
-        <span class="match-state">${escapeHtml(locked ? "Live Calculation" : match.badge || "OPEN FOR ENTRIES")}</span>
+        <span class="match-state">${escapeHtml(locked ? (isExpired ? "Match Started" : "Live Calculation") : match.badge || "OPEN FOR ENTRIES")}</span>
         <span class="muted" style="font-size:12px">Kickoff: ${escapeHtml(match.kickoff)}</span>
       </div>
       <div class="row" style="gap:12px; justify-content:end">
-        <div class="score-box">
+        <div class="score-box" style="${hasGuess ? "border-color: #10b981; background: #f0fdf4" : ""}">
           <input class="score-input" data-score="${match.id}:a" maxlength="2" ${locked ? "disabled" : ""} value="${escapeHtml(match.userGuessA ?? "")}" placeholder="${escapeHtml(locked ? match.expectedA ?? "-" : "-")}" />
           <strong>:</strong>
           <input class="score-input" data-score="${match.id}:b" maxlength="2" ${locked ? "disabled" : ""} value="${escapeHtml(match.userGuessB ?? "")}" placeholder="${escapeHtml(locked ? match.expectedB ?? "-" : "-")}" />
         </div>
-        <button class="primary-button" ${locked ? "disabled" : ""} data-save-match="${match.id}">${locked ? "Locked" : "Save Guess"}</button>
+        <button class="primary-button" ${locked ? "disabled" : ""} data-save-match="${match.id}">${locked ? "Locked" : (hasGuess ? "Update Guess" : "Save Guess")}</button>
       </div>
     </article>
   `;
 }
 
+function getFlagUrl(team) {
+  if (!team) return "";
+  const filename = team.toLowerCase().replace(/\s+/g, "_").replace(/[^a-z0-9_]/g, "");
+  return `/assets/flags/${filename}.svg`;
+}
+
 function teamBlock(team) {
-  return `<div class="team"><div class="shield">PE</div><span class="team-name">${escapeHtml(team)}</span></div>`;
+  const flagUrl = getFlagUrl(team);
+  return `
+    <div class="team">
+      <div class="shield">
+        <img src="${flagUrl}" alt="${escapeHtml(team)}" onerror="this.style.display='none'; this.nextElementSibling.style.display='grid'" style="width:100%; height:100%; object-fit:cover; border-radius:inherit" />
+        <div class="flag-placeholder" style="display:none">PE</div>
+      </div>
+      <span class="team-name">${escapeHtml(team)}</span>
+    </div>
+  `;
 }
 
 function renderDashboard() {

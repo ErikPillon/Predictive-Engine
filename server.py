@@ -1,91 +1,155 @@
 #!/usr/bin/env python3
 """
-Predictive Engine Local Python Server
--------------------------------------
-An elegant, zero-dependency Python script to serve the pre-compiled React 
-production files with full Single Page Application (SPA) routing fallback.
+Predictive Engine local Python server.
 
 Usage:
-    python server.py [port]
+    py server.py [port]
 
-Ensure you run 'npm run build' inside your compilation environment before using
-this server so that the static 'dist/' folder is generated.
+This server does not require Node, npm, Vite, or a production build. It serves
+the plain HTML/CSS/JavaScript app in this folder and exposes Supabase public
+configuration from .env.local, .env, or the process environment.
 """
 
+import argparse
+import json
 import os
 import sys
-import argparse
-from http.server import SimpleHTTPRequestHandler, HTTPServer
+from http.server import HTTPServer, SimpleHTTPRequestHandler
+from pathlib import Path
+from urllib.parse import unquote, urlparse
 
-class SPARequestHandler(SimpleHTTPRequestHandler):
-    """
-    Subclass that gracefully intercepts path requests and falls back to
-    index.html to support single-page client side routers without HTTP 404s.
-    """
-    
+ROOT = Path(__file__).resolve().parent
+
+
+def load_env_file(path):
+    values = {}
+    if not path.exists():
+        return values
+
+    for raw_line in path.read_text(encoding="utf-8").splitlines():
+        line = raw_line.strip()
+        if not line or line.startswith("#") or "=" not in line:
+            continue
+        key, value = line.split("=", 1)
+        values[key.strip()] = value.strip().strip('"').strip("'")
+    return values
+
+
+def load_supabase_config():
+    file_values = {}
+    for name in (".env.local", ".env"):
+        file_values.update(load_env_file(ROOT / name))
+
+    supabase_url = (
+        os.environ.get("SUPABASE_URL")
+        or os.environ.get("VITE_SUPABASE_URL")
+        or file_values.get("SUPABASE_URL")
+        or file_values.get("VITE_SUPABASE_URL")
+        or ""
+    )
+    supabase_anon_key = (
+        os.environ.get("SUPABASE_PUBLISHABLE_KEY")
+        or os.environ.get("VITE_SUPABASE_PUBLISHABLE_KEY")
+        or os.environ.get("SUPABASE_ANON_KEY")
+        or os.environ.get("VITE_SUPABASE_ANON_KEY")
+        or file_values.get("SUPABASE_PUBLISHABLE_KEY")
+        or file_values.get("VITE_SUPABASE_PUBLISHABLE_KEY")
+        or file_values.get("SUPABASE_ANON_KEY")
+        or file_values.get("VITE_SUPABASE_ANON_KEY")
+        or ""
+    )
+    supabase_data_api = (
+        os.environ.get("SUPABASE_DATA_API")
+        or file_values.get("SUPABASE_DATA_API")
+        or ""
+    )
+
+    return {
+        "supabaseUrl": supabase_url,
+        "supabaseAnonKey": supabase_anon_key,
+        "supabaseKeyType": classify_supabase_key(supabase_anon_key),
+        "supabaseDataApi": supabase_data_api,
+    }
+
+
+def classify_supabase_key(value):
+    if value.startswith("sb_publishable_"):
+        return "publishable"
+    if value.startswith("eyJ"):
+        return "legacy anon JWT"
+    if value.startswith("sb_secret_"):
+        return "secret key - do not expose in browser"
+    if value:
+        return "unknown"
+    return "missing"
+
+
+class PredictiveEngineHandler(SimpleHTTPRequestHandler):
     def translate_path(self, path):
-        # We serve all static files exclusively out of the compiled 'dist' directory.
-        root = os.path.join(os.getcwd(), 'dist')
-        
-        # If the compiled 'dist' folder is missing, gracefully serve from the root directory
-        if not os.path.isdir(root):
-            root = os.getcwd()
+        parsed_path = urlparse(path).path
+        safe_path = unquote(parsed_path).lstrip("/")
+        target = (ROOT / safe_path).resolve()
 
-        # Isolate the original request path
-        translated = super().translate_path(path)
-        relative_path = os.path.relpath(translated, os.getcwd())
-        
-        # Build the targeted path relative to our preferred root
-        target_path = os.path.join(root, relative_path)
-        
-        # If the file doesn't exist on disk, fall back to index.html to protect the SPA routing
-        if not os.path.exists(target_path):
-            target_path = os.path.join(root, 'index.html')
-            
-        return target_path
+        if target.is_dir():
+            target = target / "index.html"
+
+        if not str(target).startswith(str(ROOT)) or not target.exists():
+            target = ROOT / "index.html"
+
+        return str(target)
+
+    def do_GET(self):
+        if urlparse(self.path).path == "/assets/config.js":
+            self.serve_config()
+            return
+        super().do_GET()
+
+    def serve_config(self):
+        payload = json.dumps(load_supabase_config())
+        body = f"window.PREDICTIVE_ENGINE_CONFIG = {payload};\n".encode("utf-8")
+        self.send_response(200)
+        self.send_header("Content-Type", "application/javascript; charset=utf-8")
+        self.send_header("Content-Length", str(len(body)))
+        self.end_headers()
+        self.wfile.write(body)
 
     def end_headers(self):
-        # Prevent caching during local corporate simulation runs
-        self.send_header('Cache-Control', 'no-store, no-cache, must-revalidate, max-age=0')
-        self.send_header('Pragma', 'no-cache')
-        self.send_header('Expires', '0')
+        self.send_header("Cache-Control", "no-store, no-cache, must-revalidate, max-age=0")
+        self.send_header("Pragma", "no-cache")
+        self.send_header("Expires", "0")
         super().end_headers()
 
-def run_server(port):
-    server_address = ('0.0.0.0', port)
-    
-    # Check if build directory is available
-    dist_dir = os.path.join(os.getcwd(), 'dist')
-    if not os.path.isdir(dist_dir):
-        print("\n\033[33m[WARNING] Local static 'dist' directory not found!\033[0m")
-        print("Please compile the application using 'npm run build' if you have access to node,")
-        print("otherwise the server will serve raw repository source files directly.\n")
-    else:
-        print("\n\033[32m[OK] Pre-compiled static 'dist/' directory detected.\033[0m")
 
-    httpd = HTTPServer(server_address, SPARequestHandler)
-    
+def run_server(port):
+    config = load_supabase_config()
+    httpd = HTTPServer(("0.0.0.0", port), PredictiveEngineHandler)
+
     print("--------------------------------------------------")
-    print(f" \033[36mPredictive Engine Corporate Server running...\033[0m")
-    print(f" PORT: \033[1;37m{port}\033[0m")
-    print(f" URL:  \033[1;34mhttp://localhost:{port}\033[0m")
+    print(" Predictive Engine Python server running")
+    print(f" PORT: {port}")
+    print(f" URL:  http://localhost:{port}")
+    if config["supabaseUrl"] and config["supabaseAnonKey"]:
+        print(" AUTH: Supabase configuration detected")
+        print(f" KEY:  {config['supabaseKeyType']}")
+    else:
+        print(" AUTH: Supabase configuration missing")
+        print("       Add SUPABASE_URL and SUPABASE_PUBLISHABLE_KEY to .env")
+    if config["supabaseDataApi"]:
+        print(" DATA: SUPABASE_DATA_API detected")
+    else:
+        print(" DATA: SUPABASE_DATA_API missing")
     print("--------------------------------------------------")
-    print(" Press Ctrl+C to terminate the local daemon.\n")
-    
+    print(" Press Ctrl+C to terminate.\n")
+
     try:
         httpd.serve_forever()
     except KeyboardInterrupt:
-        print("\n\033[31m[SHUTDOWN] Terminating server pool... Goodbye.\033[0m\n")
+        print("\n[SHUTDOWN] Server stopped.\n")
         sys.exit(0)
+
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Predictive Engine Python Server")
-    parser.add_argument(
-        'port', 
-        type=int, 
-        nargs='?', 
-        default=3000, 
-        help="Specify port (default: 3000)"
-    )
+    parser.add_argument("port", type=int, nargs="?", default=3000, help="Port, default 3000")
     args = parser.parse_args()
     run_server(args.port)

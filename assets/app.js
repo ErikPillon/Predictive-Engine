@@ -171,14 +171,36 @@ async function fetchDataApi() {
     const response = await fetch(config.supabaseDataApi, {
       headers: {
         Accept: "application/json",
-        ...(state.session?.access_token ? { Authorization: `Bearer ${state.session.access_token}` } : {}),
-        ...(config.supabaseAnonKey ? { apikey: config.supabaseAnonKey } : {}),
+        apikey: config.supabaseAnonKey,
+        Authorization: `Bearer ${state.session?.access_token || config.supabaseAnonKey}`,
       },
     });
     const payload = await response.json().catch(() => null);
     if (!response.ok) {
       throw new Error(payload?.message || payload?.error || `Data API returned ${response.status}`);
     }
+
+    if (Array.isArray(payload)) {
+      state.matches = payload.map((m) => {
+        const d = new Date(m.kickoff_time || m.date);
+        return {
+          id: String(m.id || Math.random()),
+          date: m.date || "Upcoming",
+          dateStr: isNaN(d.getTime()) ? (m.date || "TBD") : d.toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" }).toUpperCase(),
+          teamA: m.team_home || m.teamA || "TBD",
+          teamB: m.team_away || m.teamB || "TBD",
+          kickoff: m.time || m.kickoff || "TBD",
+          status: m.status || "open",
+          badge: m.badge || "SYNCED",
+          userGuessA: m.user_guess_a ?? m.userGuessA,
+          userGuessB: m.user_guess_b ?? m.userGuessB,
+          expectedA: m.expected_a ?? m.expectedA,
+          expectedB: m.expected_b ?? m.expectedB,
+        };
+      });
+      writeJson(storageKeys.matches, state.matches);
+    }
+
     state.dataApiStatus = "ready";
     state.dataApiPayload = payload;
   } catch (error) {

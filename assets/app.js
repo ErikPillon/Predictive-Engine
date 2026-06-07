@@ -454,7 +454,6 @@ function renderSidebar() {
       </div>
       <div class="side-actions">
         <div class="nav-section-label">Operations</div>
-        ${navButton("settings", "Settings")}
         ${navButton("support", "Support")}
         <button class="danger-button" data-action="signout">${icon("logout")} Sign Out</button>
       </div>
@@ -484,7 +483,7 @@ function renderMobileDrawer() {
           <button class="icon-button" data-action="close-mobile">X</button>
         </div>
         <nav class="side-nav">
-          ${["calendar", "dashboard", "leaderboard", "settings", "support"].map((tab) => navButton(tab, tab)).join("")}
+          ${["calendar", "dashboard", "leaderboard", "support"].map((tab) => navButton(tab, tab)).join("")}
         </nav>
         <button class="danger-button" data-action="signout" style="width:100%; margin-top:24px">Sign Out</button>
       </aside>
@@ -495,7 +494,7 @@ function renderMobileDrawer() {
 function renderActiveTab(stats) {
   if (state.activeTab === "dashboard") return renderDashboard();
   if (state.activeTab === "leaderboard") return renderLeaderboard(stats);
-  if (state.activeTab === "settings" || state.activeTab === "support") return renderSettingsSupport();
+  if (state.activeTab === "support") return renderSupport();
   return renderCalendar(stats);
 }
 
@@ -834,46 +833,22 @@ function renderLeaderboard(stats) {
   `;
 }
 
-function renderSettingsSupport() {
-  state.settingsSubTab = state.activeTab === "support" ? "support" : state.settingsSubTab;
-  return `
-    <div class="tabs">
-      <button class="tab-button ${state.settingsSubTab === "settings" ? "active" : ""}" data-subtab="settings">System Settings</button>
-      <button class="tab-button ${state.settingsSubTab === "support" ? "active" : ""}" data-subtab="support">Engine Support</button>
-    </div>
-    <div style="margin-top:24px">${state.settingsSubTab === "support" ? renderSupport() : renderSettings()}</div>
-  `;
-}
-
-function renderSettings() {
-  return `
-    <div class="settings-grid">
-      <section class="card">
-        <h3>Algorithmic Configuration</h3>
-        <label><span class="mono-label">Active Predictive Model</span><select class="select"><option>Naive Bayesian Inference</option><option>Stratos Neural Tensor V2</option><option>Multivariate Logistic Regression</option></select></label>
-        <div style="margin-top:18px"><span class="mono-label">Calculated Risk Vector</span><div class="slider-grid">${["conservative", "moderate", "aggressive"].map((risk) => `<button class="pill-button ${state.risk === risk ? "active" : ""}" data-risk="${risk}">${risk}</button>`).join("")}</div></div>
-        <div class="row" style="justify-content:space-between;margin-top:20px;background:#f8fafc;padding:16px;border:1px solid #eceef0">
-          <span><strong>System Alert Subscriptions</strong><br><small class="muted">Receive instant alerts on recalibrations.</small></span>
-          <button class="toggle ${state.notificationsEnabled ? "on" : ""}" data-action="toggle-notifications"><span></span></button>
-        </div>
-      </section>
-      <aside class="side-panel"><h3>Config Authority</h3><p style="color:#9ca3af">Changing metrics recalibrates raw tensors instantly on sandbox servers.</p><p class="badge">Security protocol OK</p></aside>
-    </div>
-  `;
-}
-
 function renderSupport() {
   return `
-    <div class="support-grid">
-      <section class="card">
-        <h3>Submit Security & Analytical Assistance Ticket</h3>
+    <div class="support-grid" style="grid-template-columns: 1fr">
+      <section class="card elegant-card">
+        <div style="display: flex; align-items: center; gap: 12px; margin-bottom: 16px">
+          <span class="badge" style="background: #fef08a; color: #92400e; border: 1px solid #fde047">WORK IN PROGRESS</span>
+          <h3 style="margin: 0" class="elegant-title">Support & Feedback</h3>
+        </div>
+        <p class="muted">The Predictive Engine is currently a work in progress. Bugs, glitches, and recalibration issues are expected.</p>
+        <p class="muted" style="margin-bottom: 24px">If you encounter any problems, please describe the issue below or contact <strong>Erik Pillon</strong> directly via Email or Microsoft Teams.</p>
+        
         <form id="support-form" class="form-stack">
-          <label><span class="mono-label">Query Category Subject</span><input class="field" required placeholder="e.g. Recalibration lag query" /></label>
-          <label><span class="mono-label">Detailed Analytics Problem Description</span><textarea class="textarea" required placeholder="Enter description of error coordinates..."></textarea></label>
-          <button class="primary-button" type="submit">Transmit Ticket</button>
+          <label><span class="mono-label">Issue Description</span><textarea class="textarea" required placeholder="Describe what went wrong..."></textarea></label>
+          <button class="primary-button" type="submit">Submit Issue</button>
         </form>
       </section>
-      <aside class="card"><h3>Support Resources</h3><p class="muted">Review model calculations before raising support queries.</p><span class="mono-label">Emergency Line IP</span><strong>10.24.1.25:3000</strong></aside>
     </div>
   `;
 }
@@ -1028,31 +1003,11 @@ function bindShellEvents() {
     });
   });
 
-  document.querySelectorAll("[data-model]").forEach((button) => {
-    button.addEventListener("click", () => { state.modelType = button.dataset.model; render(); });
-  });
-
-  document.querySelectorAll("[data-range]").forEach((range) => {
-    range.addEventListener("input", () => {
-      if (range.dataset.range === "hist") state.histWeight = Number(range.value);
-      if (range.dataset.range === "form") state.formWeight = Number(range.value);
-      render();
-    });
-  });
-
-  document.querySelectorAll("[data-risk]").forEach((button) => {
-    button.addEventListener("click", () => { state.risk = button.dataset.risk; render(); });
-  });
-
-  document.querySelectorAll("[data-subtab]").forEach((button) => {
-    button.addEventListener("click", () => { state.settingsSubTab = button.dataset.subtab; render(); });
-  });
-
   const supportForm = document.getElementById("support-form");
   if (supportForm) {
     supportForm.addEventListener("submit", (event) => {
       event.preventDefault();
-      supportForm.innerHTML = `<div class="alert-error" style="background:#d1fae5;color:#065f46;border-color:#a7f3d0">Ticket received and registered.</div>`;
+      supportForm.innerHTML = `<div class="alert-error" style="background:#d1fae5;color:#065f46;border-color:#a7f3d0">Issue registered. Thank you for your feedback.</div>`;
     });
   }
 }

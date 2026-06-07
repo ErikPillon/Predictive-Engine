@@ -564,7 +564,7 @@ function renderCalendar(stats) {
 }
 
 function metricCard(label, value, id) {
-  return `<div class="card"><span class="mono-label">${label}</span><span class="metric-value" ${id ? `id="${id}"` : ""}>${value}</span></div>`;
+  return `<div class="card elegant-card"><span class="mono-label" style="letter-spacing: 0.1em; color: #64748b">${label}</span><span class="metric-value elegant-metric" ${id ? `id="${id}"` : ""}>${value}</span></div>`;
 }
 
 function renderMatchCard(match) {

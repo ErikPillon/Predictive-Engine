@@ -218,18 +218,22 @@ async function fetchDataApi() {
 
     if (Array.isArray(payload)) {
       state.matches = payload.map((m) => {
-        const d = new Date(m.kickoff_time || m.kickoff_date || m.date);
+        const timeStr = (m.kickoff_time || m.kickoff_date || m.date || "").replace(" ", "T");
+        const d = new Date(timeStr);
+        // Extract YYYY-MM-DD for grouping
+        const isoDate = !isNaN(d.getTime()) ? d.toISOString().split("T")[0] : (m.kickoff_date || m.date || "Upcoming");
+        
         // Extract prediction if available (Supabase join returns an array)
         const prediction = Array.isArray(m.predictions) ? m.predictions[0] : null;
         
         return {
           id: String(m.id || Math.random()),
-          date: m.kickoff_date || m.date || "Upcoming",
+          date: isoDate,
           dateStr: isNaN(d.getTime()) ? (m.date || "TBD") : d.toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" }).toUpperCase(),
           teamA: m.team_home || m.teamA || "TBD",
           teamB: m.team_away || m.teamB || "TBD",
-          kickoff: m.time || m.kickoff || "TBD",
-          kickoff_time: m.kickoff_time || m.kickoff_date || m.date,
+          kickoff: m.time || m.kickoff || (isNaN(d.getTime()) ? "TBD" : d.toLocaleTimeString("en-US", { hour: "2-digit", minute: "2-digit", hour12: false })),
+          kickoff_time: timeStr,
           status: m.status || "open",
           badge: m.badge || (prediction ? "PREDICTED" : "SYNCED"),
           userGuessA: prediction ? prediction.user_guess_a : (m.user_guess_a ?? m.userGuessA),
@@ -670,15 +674,10 @@ function renderDashboard() {
 }
 
 function renderElegantDays() {
-  // Simplified elegant day renderer for June 2026
-  // Starts on a Monday (June 1st, 2026 is a Monday)
   const days = [];
   for (let i = 1; i <= 30; i++) {
-    const dateStr = `2026-06-${String(i).padStart(2, '0')}`;
-    const matchesOnDay = state.matches.filter(m => {
-       const mDate = new Date(m.kickoff_time || m.kickoff_date || m.date);
-       return mDate.getDate() === i && mDate.getMonth() === 5 && mDate.getFullYear() === 2026;
-    });
+    const dayStr = `2026-06-${String(i).padStart(2, '0')}`;
+    const matchesOnDay = state.matches.filter(m => m.date === dayStr);
     
     days.push(`
       <div class="day-cell-elegant ${matchesOnDay.length > 0 ? "has-matches" : ""}">

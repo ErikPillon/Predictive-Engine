@@ -218,21 +218,26 @@ async function fetchDataApi() {
 
     if (Array.isArray(payload)) {
       state.matches = payload.map((m) => {
-        const timeStr = (m.kickoff_time || m.kickoff_date || m.date || "").replace(" ", "T");
+        const timeStr = m.kickoff_time || m.kickoff_date || m.date || "";
         const d = new Date(timeStr);
         // Extract YYYY-MM-DD for grouping
-        const isoDate = !isNaN(d.getTime()) ? d.toISOString().split("T")[0] : (m.kickoff_date || m.date || "Upcoming");
+        const isoDate = !isNaN(d.getTime()) ? d.toISOString().split("T")[0] : (m.date || "Upcoming");
         
         // Extract prediction if available (Supabase join returns an array)
         const prediction = Array.isArray(m.predictions) ? m.predictions[0] : null;
         
+        // Format time properly from timestamp
+        const kickoffDisplay = !isNaN(d.getTime()) 
+          ? d.toLocaleTimeString("en-US", { hour: "2-digit", minute: "2-digit", hour12: false })
+          : (m.time || m.kickoff || "TBD");
+        
         return {
           id: String(m.id || Math.random()),
           date: isoDate,
-          dateStr: isNaN(d.getTime()) ? (m.date || "TBD") : d.toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" }).toUpperCase(),
+          dateStr: isNaN(d.getTime()) ? (m.date || "TBD") : d.toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric", timeZoneName: "short" }).toUpperCase(),
           teamA: m.team_home || m.teamA || "TBD",
           teamB: m.team_away || m.teamB || "TBD",
-          kickoff: m.time || m.kickoff || (isNaN(d.getTime()) ? "TBD" : d.toLocaleTimeString("en-US", { hour: "2-digit", minute: "2-digit", hour12: false })),
+          kickoff: kickoffDisplay,
           kickoff_time: timeStr,
           status: m.status || "open",
           badge: m.badge || (prediction ? "PREDICTED" : "SYNCED"),
@@ -482,10 +487,10 @@ function renderCalendar(stats) {
     const timeA = new Date(a.kickoff_time || a.date).getTime();
     const timeB = new Date(b.kickoff_time || b.date).getTime();
     
-    // Primary sort: Date/Time Descending
-    if (!isNaN(timeA) && !isNaN(timeB) && timeA !== timeB) return timeB - timeA;
+    // Primary sort: Date/Time Ascending
+    if (!isNaN(timeA) && !isNaN(timeB) && timeA !== timeB) return timeA - timeB;
     
-    // Secondary sort: Locked status (though descending time usually handles this)
+    // Secondary sort: Locked status
     const lockA = isLocked(a);
     const lockB = isLocked(b);
     if (lockA !== lockB) return lockA ? -1 : 1;

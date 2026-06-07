@@ -26,12 +26,15 @@ const state = {
   mobileOpen: false,
   statsOpen: false,
   selectedDay: null,
+  currentMonth: 5, // June
+  currentYear: 2026,
   modelType: "neural",
   histWeight: 65,
   formWeight: 80,
   notificationsEnabled: true,
   risk: "moderate",
   settingsSubTab: "settings",
+  pastPredictionsOpen: false,
 };
 
 const app = document.getElementById("app");
@@ -586,6 +589,33 @@ function renderDashboard() {
     return isPast && hasGuess;
   }).sort((a, b) => new Date(b.kickoff_time) - new Date(a.kickoff_time));
 
+  const monthNames = ["JANUARY", "FEBRUARY", "MARCH", "APRIL", "MAY", "JUNE", "JULY", "AUGUST", "SEPTEMBER", "OCTOBER", "NOVEMBER", "DECEMBER"];
+  const displayMonth = `${monthNames[state.currentMonth]} ${state.currentYear}`;
+
+  let selectedDaySummary = `<div class="empty-state" style="padding: 24px 0">Select a day on the calendar to view scheduled matches.</div>`;
+  
+  if (state.selectedDay) {
+    const dayStr = `${state.currentYear}-${String(state.currentMonth + 1).padStart(2, '0')}-${String(state.selectedDay).padStart(2, '0')}`;
+    const matchesOnDay = state.matches.filter(m => m.date === dayStr).sort((a,b) => new Date(a.kickoff_time).getTime() - new Date(b.kickoff_time).getTime());
+    
+    if (matchesOnDay.length > 0) {
+      selectedDaySummary = `<div class="daily-match-list">` + matchesOnDay.map(m => `
+        <div class="feed-item" style="margin-top: 16px; align-items: center">
+          <span class="feed-dot active"></span>
+          <div style="flex: 1">
+            <strong>${escapeHtml(m.teamA)} vs ${escapeHtml(m.teamB)}</strong>
+            <p>${m.kickoff} | ${m.status === "locked" ? "LOCKED" : "OPEN"}</p>
+          </div>
+        </div>
+      `).join("") + `</div>`;
+    } else {
+      selectedDaySummary = `<div class="empty-state" style="padding: 24px 0">No matches scheduled for this date.</div>`;
+    }
+  }
+
+  const chevronLeft = `<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m15 18-6-6 6-6"/></svg>`;
+  const chevronRight = `<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m9 18 6-6-6-6"/></svg>`;
+
   return `
     ${renderDataStatus()}
     <div class="dashboard-grid" style="grid-template-columns: 1fr">
@@ -645,10 +675,10 @@ function renderDashboard() {
       <div class="card elegant-card">
         <div class="row" style="justify-content:space-between; margin-bottom: 20px">
           <h3 class="elegant-title">Operational Calendar</h3>
-          <div class="month-nav">
-             <button class="icon-button">${icon("<")}</button>
-             <strong style="font-family: var(--font-mono)">JUNE 2026</strong>
-             <button class="icon-button">${icon(">")}</button>
+          <div class="month-nav" style="display: flex; align-items: center; gap: 12px">
+             <button class="icon-button" data-action="prev-month" style="border: 1px solid var(--line); border-radius: 50%">${chevronLeft}</button>
+             <strong style="font-family: var(--font-mono); min-width: 100px; text-align: center">${displayMonth}</strong>
+             <button class="icon-button" data-action="next-month" style="border: 1px solid var(--line); border-radius: 50%">${chevronRight}</button>
           </div>
         </div>
         <div class="elegant-month-grid">
@@ -658,21 +688,9 @@ function renderDashboard() {
       </div>
       
       <div class="side-panel-elegant">
-        <h3 class="elegant-title" style="color: white">System Feed</h3>
-        <div class="feed-item">
-          <span class="feed-dot"></span>
-          <div>
-            <strong>Next Major Sync</strong>
-            <p>Automatic recalibration in 4h 12m</p>
-          </div>
-        </div>
-        <div class="feed-item">
-          <span class="feed-dot active"></span>
-          <div>
-            <strong>API Connectivity</strong>
-            <p>Supabase nodes operating at 100%</p>
-          </div>
-        </div>
+        <h3 class="elegant-title" style="color: white">Daily Summary</h3>
+        ${state.selectedDay ? `<p class="muted" style="margin-top: 4px">${monthNames[state.currentMonth]} ${state.selectedDay}, ${state.currentYear}</p>` : ""}
+        ${selectedDaySummary}
       </div>
     </div>
   `;
@@ -680,19 +698,32 @@ function renderDashboard() {
 
 function renderElegantDays() {
   const days = [];
-  for (let i = 1; i <= 30; i++) {
-    const dayStr = `2026-06-${String(i).padStart(2, '0')}`;
+  const firstDay = new Date(state.currentYear, state.currentMonth, 1).getDay();
+  const daysInMonth = new Date(state.currentYear, state.currentMonth + 1, 0).getDate();
+  
+  // Adjust so Monday is 0, Sunday is 6
+  let startOffset = firstDay === 0 ? 6 : firstDay - 1;
+
+  for (let i = 0; i < startOffset; i++) {
+    days.push(`<div class="day-cell-elegant empty" style="background: transparent; border: 0"></div>`);
+  }
+
+  for (let i = 1; i <= daysInMonth; i++) {
+    const dayStr = `${state.currentYear}-${String(state.currentMonth + 1).padStart(2, '0')}-${String(i).padStart(2, '0')}`;
     const matchesOnDay = state.matches.filter(m => m.date === dayStr);
     
+    const isSelected = state.selectedDay === i ? "selected" : "";
+    const hasMatches = matchesOnDay.length > 0 ? "has-matches" : "";
+
     days.push(`
-      <div class="day-cell-elegant ${matchesOnDay.length > 0 ? "has-matches" : ""}">
+      <button class="day-cell-elegant ${hasMatches} ${isSelected}" data-action="select-day" data-day="${i}" style="border:0; cursor:pointer; font-family:inherit">
         <span class="day-num">${i}</span>
         ${matchesOnDay.length > 0 ? `
           <div class="match-indicator">
             ${matchesOnDay.length} Match${matchesOnDay.length > 1 ? "es" : ""}
           </div>
         ` : ""}
-      </div>
+      </button>
     `);
   }
   return days.join("");
@@ -832,6 +863,23 @@ function bindShellEvents() {
       if (action === "fetch-data") await fetchDataApi();
       if (action === "toggle-notifications") { state.notificationsEnabled = !state.notificationsEnabled; render(); }
       if (action === "toggle-past") { state.pastPredictionsOpen = !state.pastPredictionsOpen; render(); }
+      if (action === "prev-month") {
+        state.currentMonth--;
+        if (state.currentMonth < 0) { state.currentMonth = 11; state.currentYear--; }
+        state.selectedDay = null; // Reset selection on month change
+        render();
+      }
+      if (action === "next-month") {
+        state.currentMonth++;
+        if (state.currentMonth > 11) { state.currentMonth = 0; state.currentYear++; }
+        state.selectedDay = null;
+        render();
+      }
+      if (action === "select-day") {
+        const value = Number(element.dataset.day);
+        state.selectedDay = state.selectedDay === value ? null : value;
+        render();
+      }
     });
   });
 
@@ -865,14 +913,6 @@ function bindShellEvents() {
     range.addEventListener("input", () => {
       if (range.dataset.range === "hist") state.histWeight = Number(range.value);
       if (range.dataset.range === "form") state.formWeight = Number(range.value);
-      render();
-    });
-  });
-
-  document.querySelectorAll("[data-day]").forEach((day) => {
-    day.addEventListener("click", () => {
-      const value = Number(day.dataset.day);
-      state.selectedDay = state.selectedDay === value ? null : value;
       render();
     });
   });

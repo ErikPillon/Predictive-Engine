@@ -888,6 +888,12 @@ button:disabled {
   box-shadow: 0 4px 12px rgba(0,0,0,0.04);
 }
 
+.day-cell-elegant.selected {
+  outline: 2px solid #0f172a;
+  outline-offset: -2px;
+  background: #f1f5f9;
+}
+
 .day-num {
   font-weight: 900;
   font-size: 13px;
@@ -901,6 +907,20 @@ button:disabled {
   font-weight: 850;
   border-radius: 4px;
   text-align: center;
+}
+
+.daily-match-list {
+  max-height: 400px;
+  overflow-y: auto;
+  padding-right: 8px;
+}
+
+.daily-match-list::-webkit-scrollbar {
+  width: 4px;
+}
+
+.daily-match-list::-webkit-scrollbar-thumb {
+  background: rgba(255,255,255,0.2);
 }
 
 .side-panel-elegant {

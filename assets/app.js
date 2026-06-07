@@ -116,44 +116,45 @@ function currentUserEmail() {
 function getStats() {
   const matches = state.matches || [];
   const upcomingMatches = matches.length;
-  const predictedCount = matches.filter((match) => 
-    (match.userGuessA !== undefined && match.userGuessA !== null && match.userGuessA !== "") && 
+  const predictedCount = matches.filter((match) =>
+    (match.userGuessA !== undefined && match.userGuessA !== null && match.userGuessA !== "") &&
     (match.userGuessB !== undefined && match.userGuessB !== null && match.userGuessB !== "")
   ).length;
-  
+
   const pendingGuesses = Math.max(0, upcomingMatches - predictedCount);
-  
+
   // Calculate accuracy based on matches that have results (expected scores)
-  const completedMatches = matches.filter(m => 
-    (m.expectedA !== undefined && m.expectedA !== null && m.expectedA !== "") && 
+  const completedMatches = matches.filter(m =>
+    (m.expectedA !== undefined && m.expectedA !== null && m.expectedA !== "") &&
     (m.expectedB !== undefined && m.expectedB !== null && m.expectedB !== "")
   );
-  const correctScores = completedMatches.filter(m => 
-    Number(m.userGuessA) === Number(m.expectedA) && 
-    Number(m.userGuessB) === Number(m.expectedB)
-  ).length;
-  
-  let accuracyTier = "A+";
-  if (completedMatches.length > 0) {
-    const ratio = correctScores / completedMatches.length;
-    if (ratio > 0.8) accuracyTier = "S";
-    else if (ratio > 0.5) accuracyTier = "A+";
-    else if (ratio > 0.3) accuracyTier = "A";
-    else accuracyTier = "B";
-  }
 
-  const bonus = matches.filter((match) => match.id !== "m1" && (match.userGuessA !== undefined && match.userGuessA !== null)).length;
+  let correctScores = 0;
+  let correctOutcomes = 0;
+
+  completedMatches.forEach(m => {
+    const guessA = Number(m.userGuessA);
+    const guessB = Number(m.userGuessB);
+    const expA = Number(m.expectedA);
+    const expB = Number(m.expectedB);
+
+    if (guessA === expA && guessB === expB) {
+      correctScores++;
+    } else if ((guessA > guessB && expA > expB) || 
+               (guessA < guessB && expA < expB) || 
+               (guessA === guessB && expA === expB)) {
+      correctOutcomes++;
+    }
+  });
+
   return {
     upcomingMatches,
     pendingGuesses,
-    accuracyTier,
-    userPosition: Math.max(1, 14 - bonus),
-    totalUsers: 2450,
-    correctScores: correctScores,
-    correctOutcomes: 128 + bonus * 2,
+    correctScores,
+    correctOutcomes,
+    totalUsers: state.leaderboard.length || 0
   };
 }
-
 function notify(message) {
   state.alerts.push(message);
   render();

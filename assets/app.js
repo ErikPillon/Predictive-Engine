@@ -1007,7 +1007,7 @@ function bindShellEvents() {
   if (supportForm) {
     supportForm.addEventListener("submit", (event) => {
       event.preventDefault();
-      supportForm.innerHTML = `<div class="alert-error" style="background:#d1fae5;color:#065f46;border-color:#a7f3d0">Issue registered. Thank you for your feedback.</div>`;
+      supportForm.innerHTML = `<div class="alert-error" style="background:#fef2f2;color:#991b1b;border-color:#fecaca">Feature not implemented yet. Please contact Erik Pillon directly via email or Teams.</div>`;
     });
   }
 }

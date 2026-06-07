@@ -57,7 +57,7 @@ function writeJson(key, value) {
 
 async function fetchLeaderboardApi() {
   if (!config.supabaseDataApi || !state.session) return;
-  const apiUrl = config.supabaseDataApi.replace(/\/$/, "").replace(/\?.*/, "") + "/predictions?select=*";
+  const apiUrl = config.supabaseDataApi.replace(/\/$/, "").replace(/\?.*/, "") + "/leaderboard?select=*";
   try {
     const response = await fetch(apiUrl, {
       headers: {
@@ -66,47 +66,17 @@ async function fetchLeaderboardApi() {
         Authorization: `Bearer ${state.session.access_token}`
       }
     });
-    const predictions = await response.json().catch(() => []);
+    const leaderboardData = await response.json().catch(() => []);
     
-    if (Array.isArray(predictions)) {
-      // Aggregate points by user_id
-      const userScores = {};
-      
-      predictions.forEach(p => {
-        if (!userScores[p.user_id]) {
-          userScores[p.user_id] = { points: 0, exact: 0, outcome: 0 };
-        }
-        
-        // Find the match to check actual result
-        const match = state.matches.find(m => m.id === String(p.match_id));
-        if (match && match.expectedA !== undefined && match.expectedB !== undefined) {
-          const expectedA = Number(match.expectedA);
-          const expectedB = Number(match.expectedB);
-          const guessA = Number(p.pred_home);
-          const guessB = Number(p.pred_away);
-          
-          let points = 0;
-          if (guessA === expectedA && guessB === expectedB) {
-            points = 30; // Exact score
-            userScores[p.user_id].exact++;
-          } else if ((guessA > guessB && expectedA > expectedB) || 
-                     (guessA < guessB && expectedA < expectedB) || 
-                     (guessA === guessB && expectedA === expectedB)) {
-            points = 10; // Correct outcome
-            userScores[p.user_id].outcome++;
-          }
-          userScores[p.user_id].points += points;
-        }
-      });
-      
-      const lb = Object.keys(userScores).map(userId => ({
-        userId,
-        points: userScores[userId].points,
-        exact: userScores[userId].exact,
-        outcome: userScores[userId].outcome
+    if (Array.isArray(leaderboardData)) {
+      const lb = leaderboardData.map((row, index) => ({
+        rank: index + 1,
+        userId: row.user_id,
+        email: row.email || `Analyst_${row.user_id.substring(0, 4).toUpperCase()}`,
+        points: row.total_points || 0
       })).sort((a, b) => b.points - a.points);
       
-      // Assign ranks
+      // Re-assign ranks after sort just in case view isn't pre-sorted
       lb.forEach((user, index) => { user.rank = index + 1; });
       state.leaderboard = lb;
     }
@@ -813,11 +783,9 @@ function renderLeaderboard(stats) {
 
   // Fallback to placeholder if leaderboard is empty (e.g., first sync or no predictions yet)
   const displayUsers = state.leaderboard.length > 0 ? state.leaderboard.slice(0, 50).map(u => {
-    // We don't have emails for other users due to RLS, so we generate a placeholder name based on their ID
-    const shortId = u.userId.substring(0, 4).toUpperCase();
     const isMe = u.userId === currentUserId;
-    const emailStr = isMe ? currentUserEmail() : `Analyst_${shortId}`;
-    const initials = isMe ? emailStr.slice(0,2).toUpperCase() : shortId.slice(0,2);
+    const emailStr = u.email;
+    const initials = isMe ? emailStr.slice(0,2).toUpperCase() : u.userId.substring(0, 2).toUpperCase();
     
     return [u.rank, initials, emailStr, u.points, isMe];
   }) : [
@@ -857,8 +825,8 @@ function renderLeaderboard(stats) {
           <span class="metric-value" style="color:white">${currentUserRank}</span>
           <span>/ ${Math.max(stats.totalUsers, state.leaderboard.length).toLocaleString()} users</span>
         </div>
-        <p>Correct Scores: <strong>${myLeaderboardEntry ? myLeaderboardEntry.exact : stats.correctScores}</strong></p>
-        <p>Correct Outcomes: <strong>${myLeaderboardEntry ? myLeaderboardEntry.outcome : stats.correctOutcomes}</strong></p>
+        <p>Correct Scores: <strong>${stats.correctScores}</strong></p>
+        <p>Correct Outcomes: <strong>${stats.correctOutcomes}</strong></p>
         <p>Total Points: <strong>${currentUserPoints.toLocaleString()}</strong></p>
         <button class="primary-button" data-action="stats" style="background:white;color:black;width:100%">Analyze Stats History</button>
       </aside>

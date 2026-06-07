@@ -260,12 +260,14 @@ async function fetchDataApi() {
         const isoDate = !isNaN(d.getTime()) ? d.toISOString().split("T")[0] : (m.date || "Upcoming");
         
         // Extract prediction if available (Supabase join returns an array)
-        const prediction = Array.isArray(m.predictions) ? m.predictions[0] : null;
+        const prediction = Array.isArray(m.predictions) && m.predictions.length > 0 ? m.predictions[0] : null;
         
         // Format time properly from timestamp
         const kickoffDisplay = !isNaN(d.getTime()) 
           ? d.toLocaleTimeString("en-US", { hour: "2-digit", minute: "2-digit", hour12: false })
           : (m.time || m.kickoff || "TBD");
+          
+        const existingMatch = state.matches.find(sm => sm.id === String(m.id || "")) || {};
         
         return {
           id: String(m.id || Math.random()),
@@ -276,9 +278,9 @@ async function fetchDataApi() {
           kickoff: kickoffDisplay,
           kickoff_time: timeStr,
           status: m.status || "open",
-          badge: m.badge || (prediction ? "PREDICTED" : "SYNCED"),
-          userGuessA: prediction ? prediction.pred_home : (m.pred_home ?? m.userGuessA),
-          userGuessB: prediction ? prediction.pred_away : (m.pred_away ?? m.userGuessB),
+          badge: m.badge || (prediction ? "PREDICTED" : existingMatch.badge || "SYNCED"),
+          userGuessA: prediction ? prediction.pred_home : (existingMatch.userGuessA !== undefined ? existingMatch.userGuessA : (m.pred_home ?? m.userGuessA)),
+          userGuessB: prediction ? prediction.pred_away : (existingMatch.userGuessB !== undefined ? existingMatch.userGuessB : (m.pred_away ?? m.userGuessB)),
           expectedA: m.expected_a ?? m.expectedA,
           expectedB: m.expected_b ?? m.expectedB,
         };
@@ -621,9 +623,8 @@ function teamBlock(team) {
 
 function renderDashboard() {
   const pastMatches = state.matches.filter(m => {
-    const isPast = m.kickoff_time && new Date(m.kickoff_time) < new Date();
     const hasGuess = (m.userGuessA !== undefined && m.userGuessA !== null && m.userGuessA !== "");
-    return isPast && hasGuess;
+    return hasGuess;
   }).sort((a, b) => new Date(b.kickoff_time) - new Date(a.kickoff_time));
 
   const monthNames = ["JANUARY", "FEBRUARY", "MARCH", "APRIL", "MAY", "JUNE", "JULY", "AUGUST", "SEPTEMBER", "OCTOBER", "NOVEMBER", "DECEMBER"];
@@ -660,19 +661,19 @@ function renderDashboard() {
         <div class="row" style="justify-content:space-between; margin-bottom: 24px">
           <div>
             <h3 class="elegant-title">Analytical Performance</h3>
-            <p class="muted">Historical accuracy and prediction archives.</p>
+            <p class="muted">Your recorded predictions and match results.</p>
           </div>
           <span class="badge">Archives Verified</span>
         </div>
         
         <div class="expandable-section">
           <button class="expand-toggle" data-action="toggle-past">
-            <span>Past Predictions & Results</span>
+            <span>Your Predictions</span>
             <span class="icon">${icon("menu")}</span>
           </button>
           <div class="expand-content ${state.pastPredictionsOpen ? "open" : ""}">
             ${pastMatches.length === 0 ? `
-              <div class="empty-state">No historical predictions recorded in the current session.</div>
+              <div class="empty-state">No predictions recorded yet. Submit your guesses in the Match Calendar.</div>
             ` : `
               <div class="past-list">
                 ${pastMatches.map(m => `

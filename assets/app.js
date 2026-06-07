@@ -82,8 +82,8 @@ async function fetchLeaderboardApi() {
         if (match && match.expectedA !== undefined && match.expectedB !== undefined) {
           const expectedA = Number(match.expectedA);
           const expectedB = Number(match.expectedB);
-          const guessA = Number(p.user_guess_a);
-          const guessB = Number(p.user_guess_b);
+          const guessA = Number(p.pred_home);
+          const guessB = Number(p.pred_away);
           
           let points = 0;
           if (guessA === expectedA && guessB === expectedB) {
@@ -307,8 +307,8 @@ async function fetchDataApi() {
           kickoff_time: timeStr,
           status: m.status || "open",
           badge: m.badge || (prediction ? "PREDICTED" : "SYNCED"),
-          userGuessA: prediction ? prediction.user_guess_a : (m.user_guess_a ?? m.userGuessA),
-          userGuessB: prediction ? prediction.user_guess_b : (m.user_guess_b ?? m.userGuessB),
+          userGuessA: prediction ? prediction.pred_home : (m.pred_home ?? m.userGuessA),
+          userGuessB: prediction ? prediction.pred_away : (m.pred_away ?? m.userGuessB),
           expectedA: m.expected_a ?? m.expectedA,
           expectedB: m.expected_b ?? m.expectedB,
         };
@@ -942,11 +942,11 @@ async function savePredictionToSupabase(matchId, guessA, guessB) {
   const apiUrl = config.supabaseDataApi.replace(/\/$/, "").replace(/\?.*/, "") + "/predictions";
   
   // We use an upsert to insert or update the existing prediction
-  // Assuming the predictions table has match_id, user_guess_a, user_guess_b
   const payload = {
+    user_id: state.session.user.id,
     match_id: parseInt(matchId), // Ensure numeric if ID is numeric, or leave string if UUID
-    user_guess_a: guessA,
-    user_guess_b: guessB
+    pred_home: guessA,
+    pred_away: guessB
   };
   
   // If matchId is not a number, keep it as string

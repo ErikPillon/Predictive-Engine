@@ -36,33 +36,28 @@ def load_env_file(path):
 
 
 def load_supabase_config():
+    # Load .env variables into a dict, preferring .env.local over .env
     file_values = {}
-    for name in (".env.local", ".env"):
+    for name in (".env", ".env.local"):
         file_values.update(load_env_file(ROOT / name))
 
-    supabase_url = (
-        os.environ.get("SUPABASE_URL")
-        or os.environ.get("VITE_SUPABASE_URL")
-        or file_values.get("SUPABASE_URL")
-        or file_values.get("VITE_SUPABASE_URL")
-        or ""
+    # Helper to get the first available value, prioritizing system env over .env file
+    def get_var(*names):
+        for name in names:
+            if name in os.environ:
+                return os.environ[name]
+            if name in file_values:
+                return file_values[name]
+        return ""
+
+    supabase_url = get_var("SUPABASE_URL", "VITE_SUPABASE_URL")
+    supabase_anon_key = get_var(
+        "SUPABASE_PUBLISHABLE_KEY",
+        "VITE_SUPABASE_PUBLISHABLE_KEY",
+        "SUPABASE_ANON_KEY",
+        "VITE_SUPABASE_ANON_KEY"
     )
-    supabase_anon_key = (
-        os.environ.get("SUPABASE_PUBLISHABLE_KEY")
-        or os.environ.get("VITE_SUPABASE_PUBLISHABLE_KEY")
-        or os.environ.get("SUPABASE_ANON_KEY")
-        or os.environ.get("VITE_SUPABASE_ANON_KEY")
-        or file_values.get("SUPABASE_PUBLISHABLE_KEY")
-        or file_values.get("VITE_SUPABASE_PUBLISHABLE_KEY")
-        or file_values.get("SUPABASE_ANON_KEY")
-        or file_values.get("VITE_SUPABASE_ANON_KEY")
-        or ""
-    )
-    supabase_data_api = (
-        os.environ.get("SUPABASE_DATA_API")
-        or file_values.get("SUPABASE_DATA_API")
-        or ""
-    )
+    supabase_data_api = get_var("SUPABASE_DATA_API")
 
     return {
         "supabaseUrl": supabase_url,

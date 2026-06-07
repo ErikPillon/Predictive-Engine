@@ -537,12 +537,18 @@ function renderCalendar(stats) {
   });
 
   const dates = [...new Set(sortedMatches.map((match) => match.date))];
+  
+  const currentUserId = state.session?.user?.id || "";
+  const myLeaderboardEntry = state.leaderboard.find(u => u.userId === currentUserId);
+  const currentUserRank = myLeaderboardEntry ? myLeaderboardEntry.rank : "-";
+  const totalPlayers = state.leaderboard.length > 0 ? state.leaderboard.length : "-";
+
   return `
     ${renderDataStatus()}
     <div class="grid-3">
       ${metricCard("Upcoming Matches", stats.upcomingMatches, "metric-value-matches")}
       ${metricCard("Pending Guesses", String(stats.pendingGuesses).padStart(2, "0"), "metric-value-guesses")}
-      ${metricCard("Accuracy Tier", `${stats.accuracyTier} <span style="font-size:12px;color:#059669">(TOP 1%)</span>`, "metric-value-tier")}
+      ${metricCard("Current Position", `${currentUserRank} <span style="font-size:16px;color:#64748b;font-weight:600;letter-spacing:0">/ ${totalPlayers}</span>`, "metric-value-tier")}
     </div>
     <div class="section-stack">
       ${sortedMatches.length === 0 ? `

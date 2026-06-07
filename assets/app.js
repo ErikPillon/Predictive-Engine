@@ -939,7 +939,7 @@ function renderStatsModal() {
 async function savePredictionToSupabase(matchId, guessA, guessB) {
   if (!config.supabaseDataApi || !state.session) return false;
   
-  const apiUrl = config.supabaseDataApi.replace(/\/$/, "").replace(/\?.*/, "") + "/predictions";
+  const apiUrl = config.supabaseDataApi.replace(/\/$/, "").replace(/\?.*/, "") + "/predictions?on_conflict=user_id,match_id";
   
   // We use an upsert to insert or update the existing prediction
   const payload = {

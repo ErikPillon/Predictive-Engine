@@ -35,6 +35,7 @@ const state = {
   risk: "moderate",
   settingsSubTab: "settings",
   pastPredictionsOpen: false,
+  leaderboard: [],
 };
 
 const app = document.getElementById("app");
@@ -50,6 +51,68 @@ function readJson(key, fallback) {
 
 function writeJson(key, value) {
   localStorage.setItem(key, JSON.stringify(value));
+}
+
+// ... (helper functions)
+
+async function fetchLeaderboardApi() {
+  if (!config.supabaseDataApi || !state.session) return;
+  const apiUrl = config.supabaseDataApi.replace(/\/$/, "").replace(/\?.*/, "") + "/predictions?select=*";
+  try {
+    const response = await fetch(apiUrl, {
+      headers: {
+        Accept: "application/json",
+        apikey: config.supabaseAnonKey,
+        Authorization: `Bearer ${state.session.access_token}`
+      }
+    });
+    const predictions = await response.json().catch(() => []);
+    
+    if (Array.isArray(predictions)) {
+      // Aggregate points by user_id
+      const userScores = {};
+      
+      predictions.forEach(p => {
+        if (!userScores[p.user_id]) {
+          userScores[p.user_id] = { points: 0, exact: 0, outcome: 0 };
+        }
+        
+        // Find the match to check actual result
+        const match = state.matches.find(m => m.id === String(p.match_id));
+        if (match && match.expectedA !== undefined && match.expectedB !== undefined) {
+          const expectedA = Number(match.expectedA);
+          const expectedB = Number(match.expectedB);
+          const guessA = Number(p.user_guess_a);
+          const guessB = Number(p.user_guess_b);
+          
+          let points = 0;
+          if (guessA === expectedA && guessB === expectedB) {
+            points = 30; // Exact score
+            userScores[p.user_id].exact++;
+          } else if ((guessA > guessB && expectedA > expectedB) || 
+                     (guessA < guessB && expectedA < expectedB) || 
+                     (guessA === guessB && expectedA === expectedB)) {
+            points = 10; // Correct outcome
+            userScores[p.user_id].outcome++;
+          }
+          userScores[p.user_id].points += points;
+        }
+      });
+      
+      const lb = Object.keys(userScores).map(userId => ({
+        userId,
+        points: userScores[userId].points,
+        exact: userScores[userId].exact,
+        outcome: userScores[userId].outcome
+      })).sort((a, b) => b.points - a.points);
+      
+      // Assign ranks
+      lb.forEach((user, index) => { user.rank = index + 1; });
+      state.leaderboard = lb;
+    }
+  } catch (error) {
+    console.error("Failed to fetch leaderboard", error);
+  }
 }
 
 function escapeHtml(value) {
@@ -255,6 +318,10 @@ async function fetchDataApi() {
 
     state.dataApiStatus = "ready";
     state.dataApiPayload = payload;
+    
+    // Fetch leaderboard data after matches are loaded
+    await fetchLeaderboardApi();
+    
   } catch (error) {
     state.dataApiStatus = "error";
     state.dataApiPayload = { message: error.message };
@@ -734,13 +801,30 @@ function rangeControl(label, name, value, min, max) {
 }
 
 function renderLeaderboard(stats) {
-  const users = [
-    [1, "JD", "jane.data@analytics.io", 12450],
-    [2, "MS", "mark.stat@predict.com", 11820],
-    [3, "AW", "alice.w@logic.net", 10950],
-    [4, "CB", "charlie.bravo@defense.gov", 9400],
-    [5, "ES", "elena.s@neural.ai", 8210],
+  let currentUserRank = stats.userPosition;
+  let currentUserPoints = 0;
+  
+  const currentUserId = state.session?.user?.id || "";
+  const myLeaderboardEntry = state.leaderboard.find(u => u.userId === currentUserId);
+  if (myLeaderboardEntry) {
+    currentUserRank = myLeaderboardEntry.rank;
+    currentUserPoints = myLeaderboardEntry.points;
+  }
+
+  // Fallback to placeholder if leaderboard is empty (e.g., first sync or no predictions yet)
+  const displayUsers = state.leaderboard.length > 0 ? state.leaderboard.slice(0, 50).map(u => {
+    // We don't have emails for other users due to RLS, so we generate a placeholder name based on their ID
+    const shortId = u.userId.substring(0, 4).toUpperCase();
+    const isMe = u.userId === currentUserId;
+    const emailStr = isMe ? currentUserEmail() : `Analyst_${shortId}`;
+    const initials = isMe ? emailStr.slice(0,2).toUpperCase() : shortId.slice(0,2);
+    
+    return [u.rank, initials, emailStr, u.points, isMe];
+  }) : [
+    [1, "JD", "jane.data@analytics.io", 12450, false],
+    [2, "MS", "mark.stat@predict.com", 11820, false]
   ];
+
   return `
     ${renderDataStatus()}
     <div class="leaderboard-layout">
@@ -751,8 +835,16 @@ function renderLeaderboard(stats) {
           <table>
             <thead><tr><th>Rank</th><th>User Profile</th><th>Points</th></tr></thead>
             <tbody>
-              ${users.map(([rank, initials, email, points]) => `<tr><td class="rank">#${rank}</td><td><span class="avatar" style="display:inline-grid;margin-right:12px">${initials}</span><strong>${email}</strong></td><td><strong>${points.toLocaleString()}</strong></td></tr>`).join("")}
-              <tr class="leader-row-current"><td class="rank">#${stats.userPosition}</td><td><span class="avatar" style="display:inline-grid;margin-right:12px">${escapeHtml(currentUserEmail().slice(0, 2).toUpperCase())}</span><strong>${escapeHtml(currentUserEmail())}</strong> <span class="badge">You</span></td><td><strong>7,840</strong></td></tr>
+              ${displayUsers.map(([rank, initials, email, points, isMe]) => `
+                <tr class="${isMe ? 'leader-row-current' : ''}">
+                  <td class="rank">#${rank}</td>
+                  <td>
+                    <span class="avatar" style="display:inline-grid;margin-right:12px">${initials}</span>
+                    <strong>${escapeHtml(email)}</strong> ${isMe ? '<span class="badge">You</span>' : ''}
+                  </td>
+                  <td><strong>${points.toLocaleString()}</strong></td>
+                </tr>
+              `).join("")}
             </tbody>
           </table>
         </div>
@@ -760,9 +852,14 @@ function renderLeaderboard(stats) {
       <aside class="side-panel">
         <h2>Your Performance</h2>
         <p class="muted" style="color:#9ca3af">Current Season Ranking</p>
-        <div class="card" style="background:#111827;color:white;border-color:#1f2937"><span class="mono-label" style="color:#9ca3af">Position</span><span class="metric-value" style="color:white">${stats.userPosition}</span><span>/ ${stats.totalUsers.toLocaleString()} users</span></div>
-        <p>Correct Scores: <strong>${stats.correctScores}</strong></p>
-        <p>Correct Outcomes: <strong>${stats.correctOutcomes}</strong></p>
+        <div class="card" style="background:#111827;color:white;border-color:#1f2937">
+          <span class="mono-label" style="color:#9ca3af">Position</span>
+          <span class="metric-value" style="color:white">${currentUserRank}</span>
+          <span>/ ${Math.max(stats.totalUsers, state.leaderboard.length).toLocaleString()} users</span>
+        </div>
+        <p>Correct Scores: <strong>${myLeaderboardEntry ? myLeaderboardEntry.exact : stats.correctScores}</strong></p>
+        <p>Correct Outcomes: <strong>${myLeaderboardEntry ? myLeaderboardEntry.outcome : stats.correctOutcomes}</strong></p>
+        <p>Total Points: <strong>${currentUserPoints.toLocaleString()}</strong></p>
         <button class="primary-button" data-action="stats" style="background:white;color:black;width:100%">Analyze Stats History</button>
       </aside>
     </div>
@@ -839,6 +936,49 @@ function renderStatsModal() {
   `;
 }
 
+async function savePredictionToSupabase(matchId, guessA, guessB) {
+  if (!config.supabaseDataApi || !state.session) return false;
+  
+  const apiUrl = config.supabaseDataApi.replace(/\/$/, "").replace(/\?.*/, "") + "/predictions";
+  
+  // We use an upsert to insert or update the existing prediction
+  // Assuming the predictions table has match_id, user_guess_a, user_guess_b
+  const payload = {
+    match_id: parseInt(matchId), // Ensure numeric if ID is numeric, or leave string if UUID
+    user_guess_a: guessA,
+    user_guess_b: guessB
+  };
+  
+  // If matchId is not a number, keep it as string
+  if (isNaN(payload.match_id)) {
+    payload.match_id = matchId;
+  }
+
+  try {
+    const response = await fetch(apiUrl, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "Accept": "application/json",
+        "Prefer": "resolution=merge-duplicates",
+        "apikey": config.supabaseAnonKey,
+        "Authorization": `Bearer ${state.session.access_token}`
+      },
+      body: JSON.stringify(payload)
+    });
+    
+    if (!response.ok) {
+      const errorData = await response.json().catch(() => ({}));
+      console.error("Failed to save prediction:", errorData);
+      return false;
+    }
+    return true;
+  } catch (error) {
+    console.error("Network error saving prediction:", error);
+    return false;
+  }
+}
+
 function bindShellEvents() {
   document.querySelectorAll("[data-tab]").forEach((button) => {
     button.addEventListener("click", () => {
@@ -890,7 +1030,7 @@ function bindShellEvents() {
   });
 
   document.querySelectorAll("[data-save-match]").forEach((button) => {
-    button.addEventListener("click", () => {
+    button.addEventListener("click", async () => {
       const matchId = button.dataset.saveMatch;
       const inputA = document.querySelector(`[data-score="${matchId}:a"]`);
       const inputB = document.querySelector(`[data-score="${matchId}:b"]`);
@@ -898,9 +1038,24 @@ function bindShellEvents() {
         notify("Enter both score values before saving.");
         return;
       }
-      state.matches = state.matches.map((match) => match.id === matchId ? { ...match, userGuessA: Number(inputA.value), userGuessB: Number(inputB.value), badge: "PREDICTION LOCKED" } : match);
-      writeJson(storageKeys.matches, state.matches);
-      notify("Guess logged. Probability metrics updated.");
+      
+      const guessA = Number(inputA.value);
+      const guessB = Number(inputB.value);
+      
+      const originalText = button.textContent;
+      button.disabled = true;
+      button.textContent = "Saving...";
+
+      const success = await savePredictionToSupabase(matchId, guessA, guessB);
+      
+      if (success) {
+        state.matches = state.matches.map((match) => match.id === matchId ? { ...match, userGuessA: guessA, userGuessB: guessB, badge: "PREDICTION LOCKED" } : match);
+        writeJson(storageKeys.matches, state.matches);
+        notify("Guess logged and saved to Supabase.");
+      } else {
+        notify("Failed to save to Supabase. Check console.");
+      }
+      
       render();
     });
   });

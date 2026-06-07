@@ -400,7 +400,7 @@ function renderShell() {
           </div>
           <div class="row" style="gap:10px">
             <button class="icon-button" data-action="notify">${icon("bell")}<span class="notification-dot"></span></button>
-            <span class="badge">Active Season: 2024/25</span>
+            <span class="badge">2026 FIFA World Cup</span>
             <button class="avatar" data-action="profile">${escapeHtml(currentUserEmail().slice(0, 2).toUpperCase() || "PE")}</button>
           </div>
         </header>
@@ -781,29 +781,25 @@ function renderLeaderboard(stats) {
     currentUserPoints = myLeaderboardEntry.points;
   }
 
-  // Fallback to placeholder if leaderboard is empty (e.g., first sync or no predictions yet)
-  const displayUsers = state.leaderboard.length > 0 ? state.leaderboard.slice(0, 50).map(u => {
+  const displayUsers = state.leaderboard.slice(0, 50).map(u => {
     const isMe = u.userId === currentUserId;
     const emailStr = u.email;
     const initials = isMe ? emailStr.slice(0,2).toUpperCase() : u.userId.substring(0, 2).toUpperCase();
     
     return [u.rank, initials, emailStr, u.points, isMe];
-  }) : [
-    [1, "JD", "jane.data@analytics.io", 12450, false],
-    [2, "MS", "mark.stat@predict.com", 11820, false]
-  ];
+  });
 
   return `
     ${renderDataStatus()}
     <div class="leaderboard-layout">
       <section>
         <h2>Global Leaderboard</h2>
-        <p class="muted">Seasonal ranking of the top predictive analysts.</p>
+        <p class="muted">2026 FIFA World Cup ranking of the top predictive analysts.</p>
         <div class="table-wrap">
           <table>
             <thead><tr><th>Rank</th><th>User Profile</th><th>Points</th></tr></thead>
             <tbody>
-              ${displayUsers.map(([rank, initials, email, points, isMe]) => `
+              ${displayUsers.length > 0 ? displayUsers.map(([rank, initials, email, points, isMe]) => `
                 <tr class="${isMe ? 'leader-row-current' : ''}">
                   <td class="rank">#${rank}</td>
                   <td>
@@ -812,14 +808,14 @@ function renderLeaderboard(stats) {
                   </td>
                   <td><strong>${points.toLocaleString()}</strong></td>
                 </tr>
-              `).join("")}
+              `).join("") : `<tr><td colspan="3" style="text-align:center;color:#6b7280;padding:32px">No ranking data available yet.</td></tr>`}
             </tbody>
           </table>
         </div>
       </section>
       <aside class="side-panel">
         <h2>Your Performance</h2>
-        <p class="muted" style="color:#9ca3af">Current Season Ranking</p>
+        <p class="muted" style="color:#9ca3af">2026 FIFA World Cup Ranking</p>
         <div class="card" style="background:#111827;color:white;border-color:#1f2937">
           <span class="mono-label" style="color:#9ca3af">Position</span>
           <span class="metric-value" style="color:white">${currentUserRank}</span>

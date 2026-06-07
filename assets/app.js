@@ -331,11 +331,6 @@ function renderLogin(error = "") {
         </div>
         ${error ? `<div class="alert-error">${escapeHtml(error)}</div>` : ""}
         ${state.authNotice ? `<div class="alert-error" style="background:#d1fae5;color:#065f46;border-color:#a7f3d0">${escapeHtml(state.authNotice)}</div>` : ""}
-        ${!config.supabaseUrl || !config.supabaseAnonKey ? `
-          <div class="alert-error">
-            Missing Supabase Auth config. Add SUPABASE_URL and SUPABASE_ANON_KEY to .env, then restart py server.py.
-          </div>
-        ` : ""}
         <form id="login-form" class="form-stack">
           <label>
             <span class="mono-label">Corporate Email</span>

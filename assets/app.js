@@ -280,9 +280,9 @@ async function fetchDataApi() {
           kickoff: kickoffDisplay,
           kickoff_time: timeStr,
           status: m.status || "open",
-          badge: m.badge || (prediction ? "PREDICTED" : existingMatch.badge || "SYNCED"),
-          userGuessA: prediction ? prediction.pred_home : (existingMatch.userGuessA !== undefined ? existingMatch.userGuessA : (m.pred_home ?? m.userGuessA)),
-          userGuessB: prediction ? prediction.pred_away : (existingMatch.userGuessB !== undefined ? existingMatch.userGuessB : (m.pred_away ?? m.userGuessB)),
+          badge: prediction ? "PREDICTED" : "OPEN",
+          userGuessA: prediction ? prediction.pred_home : "",
+          userGuessB: prediction ? prediction.pred_away : "",
           expectedA: m.expected_a ?? m.expectedA,
           expectedB: m.expected_b ?? m.expectedB,
         };

@@ -304,12 +304,29 @@ async function fetchDataApi() {
 }
 
 function signOut() {
+  // 1. Clear session and navigation state
   state.session = null;
   state.activeTab = "calendar";
+  
+  // 2. COMPLETELY WIPE THE DATA STATE (The missing piece)
+  state.matches = []; 
   state.dataApiPayload = null;
   state.dataApiStatus = "idle";
+  
+  // If you store leaderboard data in state, clear that too:
+  // state.leaderboard = []; 
+
+  // 3. WIPE ALL LOCAL STORAGE CACHES
   localStorage.removeItem(storageKeys.session);
   localStorage.removeItem(storageKeys.tab);
+  
+  // THIS is the line that kills the ghost predictions:
+  localStorage.removeItem(storageKeys.matches); 
+  
+  // Note: If your app doesn't store anything else important, 
+  // you can safely replace all the localStorage.removeItem lines with:
+  // localStorage.clear();
+
   render();
 }
 

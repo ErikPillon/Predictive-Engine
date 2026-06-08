@@ -242,6 +242,7 @@ async function fetchDataApi() {
     }
 
     const response = await fetch(apiUrl, {
+      cache: "no-store",
       headers: {
         Accept: "application/json",
         apikey: config.supabaseAnonKey,

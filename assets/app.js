@@ -190,6 +190,18 @@ async function signInWithSupabase(email, password) {
   notify("Welcome back. Supabase session established.");
 }
 
+function handleSessionExpired() {
+  // 1. Gently alert the user (you can replace this with a custom UI modal/toast if you have one)
+  alert("For security, your session has expired after being idle. Please log in again to continue!");
+
+  // 2. Nuke the browser storage
+  localStorage.clear();
+  sessionStorage.clear();
+  
+  // 3. Force a hard browser refresh to send them back to the clean login screen
+  window.location.reload();
+}
+
 async function signUpWithSupabase(email, password) {
   if (!config.supabaseUrl || !config.supabaseAnonKey) {
     throw new Error("Supabase Auth is not configured. Add SUPABASE_URL and SUPABASE_ANON_KEY to .env.");
@@ -250,6 +262,13 @@ async function fetchDataApi() {
       },
     });
     const payload = await response.json().catch(() => null);
+    
+    // Check specifically for an expired token or 401 Unauthorized status
+    if (response.status === 401 || (payload?.message && payload.message.toLowerCase().includes("jwt expired"))) {
+      handleSessionExpired();
+      return; // Stop execution of the rest of the function
+    }
+
     if (!response.ok) {
       throw new Error(payload?.message || payload?.error || `Data API returned ${response.status}`);
     }

@@ -9,3 +9,4 @@ coverage/
 __pycache__/
 *.py[cod]
 GEMINI.md
+assets/config.js

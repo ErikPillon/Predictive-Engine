@@ -190,6 +190,18 @@ async function signInWithSupabase(email, password) {
   notify("Welcome back. Supabase session established.");
 }
 
+function handleSessionExpired() {
+  // 1. Gently alert the user (you can replace this with a custom UI modal/toast if you have one)
+  alert("For security, your session has expired after being idle. Please log in again to continue!");
+
+  // 2. Nuke the browser storage
+  localStorage.clear();
+  sessionStorage.clear();
+  
+  // 3. Force a hard browser refresh to send them back to the clean login screen
+  window.location.reload();
+}
+
 async function signUpWithSupabase(email, password) {
   if (!config.supabaseUrl || !config.supabaseAnonKey) {
     throw new Error("Supabase Auth is not configured. Add SUPABASE_URL and SUPABASE_ANON_KEY to .env.");
@@ -250,6 +262,13 @@ async function fetchDataApi() {
       },
     });
     const payload = await response.json().catch(() => null);
+    
+    // Check specifically for an expired token or 401 Unauthorized status
+    if (response.status === 401 || (payload?.message && payload.message.toLowerCase().includes("jwt expired"))) {
+      handleSessionExpired();
+      return; // Stop execution of the rest of the function
+    }
+
     if (!response.ok) {
       throw new Error(payload?.message || payload?.error || `Data API returned ${response.status}`);
     }
@@ -280,9 +299,9 @@ async function fetchDataApi() {
           kickoff: kickoffDisplay,
           kickoff_time: timeStr,
           status: m.status || "open",
-          badge: m.badge || (prediction ? "PREDICTED" : existingMatch.badge || "SYNCED"),
-          userGuessA: prediction ? prediction.pred_home : (existingMatch.userGuessA !== undefined ? existingMatch.userGuessA : (m.pred_home ?? m.userGuessA)),
-          userGuessB: prediction ? prediction.pred_away : (existingMatch.userGuessB !== undefined ? existingMatch.userGuessB : (m.pred_away ?? m.userGuessB)),
+          badge: prediction ? "PREDICTED" : "OPEN",
+          userGuessA: prediction ? prediction.pred_home : "",
+          userGuessB: prediction ? prediction.pred_away : "",
           expectedA: m.expected_a ?? m.expectedA,
           expectedB: m.expected_b ?? m.expectedB,
         };
@@ -304,12 +323,29 @@ async function fetchDataApi() {
 }
 
 function signOut() {
+  // 1. Clear session and navigation state
   state.session = null;
   state.activeTab = "calendar";
+  
+  // 2. COMPLETELY WIPE THE DATA STATE (The missing piece)
+  state.matches = []; 
   state.dataApiPayload = null;
   state.dataApiStatus = "idle";
+  
+  // If you store leaderboard data in state, clear that too:
+  // state.leaderboard = []; 
+
+  // 3. WIPE ALL LOCAL STORAGE CACHES
   localStorage.removeItem(storageKeys.session);
   localStorage.removeItem(storageKeys.tab);
+  
+  // THIS is the line that kills the ghost predictions:
+  localStorage.removeItem(storageKeys.matches); 
+  
+  // Note: If your app doesn't store anything else important, 
+  // you can safely replace all the localStorage.removeItem lines with:
+  // localStorage.clear();
+
   render();
 }
 

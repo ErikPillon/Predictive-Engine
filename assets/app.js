@@ -233,9 +233,9 @@ async function fetchDataApi() {
 
   try {
     let apiUrl = config.supabaseDataApi;
-    // Ensure we are hitting the matches table with a join on predictions
+    // Ensure we are hitting the matches_with_status view with a join on predictions
     if (apiUrl.endsWith("/rest/v1/") || apiUrl.endsWith("/rest/v1")) {
-      apiUrl = `${apiUrl.replace(/\/$/, "")}/matches?select=*,predictions(*)`;
+      apiUrl = `${apiUrl.replace(/\/$/, "")}/matches_with_status?select=*,predictions(*)`;
     } else if (!apiUrl.includes("select=")) {
       const separator = apiUrl.includes("?") ? "&" : "?";
       apiUrl = `${apiUrl}${separator}select=*,predictions(*)`;

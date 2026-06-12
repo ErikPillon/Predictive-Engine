@@ -36,6 +36,7 @@ const state = {
   settingsSubTab: "settings",
   pastPredictionsOpen: false,
   leaderboard: [],
+  pointsInfoOpen: false,
 };
 
 const app = document.getElementById("app");
@@ -125,8 +126,11 @@ function getStats() {
 
   // Calculate accuracy based on matches that have results (expected scores)
   const completedMatches = matches.filter(m =>
-    (m.expectedA !== undefined && m.expectedA !== null && m.expectedA !== "") &&
-    (m.expectedB !== undefined && m.expectedB !== null && m.expectedB !== "")
+    m.status === "finished" &&
+    m.userGuessA !== "" &&
+    m.userGuessB !== "" &&
+    m.expectedA !== null &&
+    m.expectedB !== null
   );
 
   let correctScores = 0;
@@ -138,12 +142,17 @@ function getStats() {
     const expA = Number(m.expectedA);
     const expB = Number(m.expectedB);
 
+    const outcomeCorrect =
+      (guessA > guessB && expA > expB) ||
+      (guessA < guessB && expA < expB) ||
+      (guessA === guessB && expA === expB);
+
+    if (outcomeCorrect) {
+      correctOutcomes++;
+    }
+
     if (guessA === expA && guessB === expB) {
       correctScores++;
-    } else if ((guessA > guessB && expA > expB) || 
-               (guessA < guessB && expA < expB) || 
-               (guessA === guessB && expA === expB)) {
-      correctOutcomes++;
     }
   });
 
@@ -302,8 +311,8 @@ async function fetchDataApi() {
           badge: prediction ? "PREDICTED" : "OPEN",
           userGuessA: prediction ? prediction.pred_home : "",
           userGuessB: prediction ? prediction.pred_away : "",
-          expectedA: m.expected_a ?? m.expectedA,
-          expectedB: m.expected_b ?? m.expectedB,
+          expectedA: m.score_home,
+          expectedB: m.score_away,
         };
       });
       writeJson(storageKeys.matches, state.matches);
@@ -828,6 +837,7 @@ function renderLeaderboard(stats) {
     return [u.rank, initials, emailStr, u.points, isMe];
   });
 
+
   return `
     ${renderDataStatus()}
     <div class="leaderboard-layout">
@@ -863,7 +873,36 @@ function renderLeaderboard(stats) {
         <p>Correct Scores: <strong>${stats.correctScores}</strong></p>
         <p>Correct Outcomes: <strong>${stats.correctOutcomes}</strong></p>
         <p>Total Points: <strong>${currentUserPoints.toLocaleString()}</strong></p>
-        <button class="primary-button" data-action="stats" style="background:white;color:black;width:100%">Analyze Stats History</button>
+
+        <div class="expandable-section" style="margin-top:20px">
+          <button class="expand-toggle" data-action="toggle-points">
+            <span>How points are calculated</span>
+            <span class="icon">${icon("menu")}</span>
+          </button>
+
+          <div class="expand-content ${state.pointsInfoOpen ? "open" : ""}">
+            <div style="padding:16px">
+
+              <p><strong>Exact Score</strong>: 30 pts</p>
+              <p><strong>Correct Winner/Draw</strong>: 10 pts</p>
+              <p><strong>Correct Goal Difference</strong>: +5 pts</p>
+              <p><strong>Goal Error Penalty</strong>: -1 pt per goal off</p>
+
+              <hr style="margin:12px 0">
+
+              <p><strong>Examples</strong></p>
+              <p>2-1 predicted, 2-1 result → 30 pts</p>
+              <p>3-2 predicted, 2-1 result → 13 pts</p>
+              <p>1-0 predicted, 2-1 result → 14 pts</p>
+              <p>1-0 predicted, 0-1 result → 0 pts</p>
+
+            </div>
+          </div>
+        </div>
+
+        <button class="primary-button" data-action="stats" style="background:white;color:black;width:100%">
+          Analyze Stats History
+        </button>
       </aside>
     </div>
   `;
@@ -982,6 +1021,10 @@ function bindShellEvents() {
       if (action === "fetch-data") await fetchDataApi();
       if (action === "toggle-notifications") { state.notificationsEnabled = !state.notificationsEnabled; render(); }
       if (action === "toggle-past") { state.pastPredictionsOpen = !state.pastPredictionsOpen; render(); }
+      if (action === "toggle-points") {
+        state.pointsInfoOpen = !state.pointsInfoOpen;
+        render();
+      }
       if (action === "prev-month") {
         state.currentMonth--;
         if (state.currentMonth < 0) { state.currentMonth = 11; state.currentYear--; }

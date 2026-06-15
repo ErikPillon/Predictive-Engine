@@ -877,11 +877,10 @@ function renderLeaderboard(stats) {
         <div class="expandable-section" style="margin-top:20px">
           <button class="expand-toggle" data-action="toggle-points">
             <span>How points are calculated</span>
-            <span class="icon">${icon("menu")}</span>
           </button>
 
           <div class="expand-content ${state.pointsInfoOpen ? "open" : ""}">
-            <div style="padding:16px">
+            <div style="padding:10px; color: black;">
 
               <p><strong>Exact Score</strong>: 30 pts</p>
               <p><strong>Correct Winner/Draw</strong>: 10 pts</p>

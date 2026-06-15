@@ -448,7 +448,6 @@ function renderShell() {
             <h1>${title}</h1>
           </div>
           <div class="row" style="gap:10px">
-            <button class="icon-button" data-action="notify">${icon("bell")}<span class="notification-dot"></span></button>
             <span class="badge">2026 FIFA World Cup</span>
             <button class="avatar" data-action="profile">${escapeHtml(currentUserEmail().slice(0, 2).toUpperCase() || "PE")}</button>
           </div>
@@ -542,31 +541,13 @@ function renderActiveTab(stats) {
   return renderCalendar(stats);
 }
 
-function renderDataStatus() {
-  const status = {
-    idle: "Data API has not been called yet.",
-    missing: "SUPABASE_DATA_API is missing from .env.",
-    loading: "Fetching Supabase data...",
-    ready: "Supabase data loaded successfully.",
-    error: `Data API error: ${state.dataApiPayload?.message || "Unknown error"}`,
-  }[state.dataApiStatus];
-
-  return `
-    <div class="card" style="margin-bottom:24px">
-      <span class="mono-label">Supabase Data API</span>
-      <div class="row" style="justify-content:space-between; gap:16px">
-        <p class="muted" style="margin:0">${escapeHtml(status)}</p>
-        <button class="secondary-button" data-action="fetch-data">Refresh Data</button>
-      </div>
-    </div>
-  `;
-}
-
 function renderCalendar(stats) {
   const now = new Date();
   const isLocked = (m) => m.status === "locked" || (m.kickoff_time && new Date(m.kickoff_time) < now);
+  const todayIso = now.toISOString().split("T")[0];
 
-  const sortedMatches = [...state.matches].sort((a, b) => {
+  const upcomingMatchesOnly = state.matches.filter(m => m.date >= todayIso);
+  const sortedMatches = [...upcomingMatchesOnly].sort((a, b) => {
     const timeA = new Date(a.kickoff_time || a.date).getTime();
     const timeB = new Date(b.kickoff_time || b.date).getTime();
     
@@ -588,7 +569,11 @@ function renderCalendar(stats) {
   const totalPlayers = state.leaderboard.length > 0 ? state.leaderboard.length : "-";
 
   return `
-    ${renderDataStatus()}
+    <div class="card" style="margin-bottom: 24px; text-align: center; border: 1px solid var(--line)">
+      <p class="muted" style="margin: 0">
+        Visit the 'My Dashboard' page to see your past predictions
+      </p>
+    </div>
     <div class="grid-3">
       ${metricCard("Upcoming Matches", stats.upcomingMatches, "metric-value-matches")}
       ${metricCard("Pending Guesses", String(stats.pendingGuesses).padStart(2, "0"), "metric-value-guesses")}
@@ -702,7 +687,6 @@ function renderDashboard() {
   const chevronRight = `<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m9 18 6-6-6-6"/></svg>`;
 
   return `
-    ${renderDataStatus()}
     <div class="dashboard-grid" style="grid-template-columns: 1fr">
       <div class="card elegant-card">
         <div class="row" style="justify-content:space-between; margin-bottom: 24px">
@@ -839,7 +823,6 @@ function renderLeaderboard(stats) {
 
 
   return `
-    ${renderDataStatus()}
     <div class="leaderboard-layout">
       <section>
         <h2>Global Leaderboard</h2>
